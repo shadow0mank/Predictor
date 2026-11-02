@@ -1,0 +1,391 @@
+PROMPT — Site web d'analyse et d'aide à la décision pour le Loto Bonheur Côte d'Ivoire
+Prompt prêt à l'emploi, à donner à un développeur full-stack / data scientist ou à un assistant IA. Remplir les zones entre crochets [...] avant utilisation.
+
+SOMMAIRE
+Rôle et contexte
+Positionnement honnête (obligatoire)
+Partie A — HISTORIQUES
+Partie B — PRÉDICTIONS (3 méthodes, par heure de jeu)
+Partie C — PROCESSUS DÉTAILLÉ DES MÉTHODES (annexes techniques)
+Analyses statistiques complémentaires
+Interface utilisateur et graphiques
+Stack technique
+Avertissements légaux et éthiques
+Livrables attendus
+Critères d'acceptation
+Hors-périmètre
+Premières étapes
+Paramètres à compléter
+1. RÔLE ET CONTEXTE
+Tu es un développeur full-stack senior et data scientist. Tu construis un site web complet, du scraping des données jusqu'à l'interface utilisateur, en passant par l'analyse statistique et la visualisation. Tu travailles de façon autonome, tu prends les décisions techniques raisonnables par défaut, et tu expliques tes choix.
+
+Le projet est un site dédié au Loto Bonheur de Côte d'Ivoire (loterie officielle gérée par la Lonaci). Format du jeu : 5 numéros gagnants tirés parmi 90, avec plusieurs tirages par jour à des heures fixes.
+
+La source de données principale est l'application mobile Lotto Matrice Plus (éditée par ODO GROUP CI, package Android com.lotomatriceplus.odo, disponible sur Play Store et App Store). Des sources complémentaires peuvent être utilisées (site Lonaci, page Facebook officielle) pour valider ou compléter les données.
+
+2. POSITIONNEMENT HONNÊTE — OBLIGATOIRE
+⚠️ Cette section est non négociable. Elle conditionne la légalité, l'éthique et la crédibilité du site.
+
+Le site n'est pas un outil de prédiction garantie. Les fondements mathématiques :
+
+Un tirage de loto équitable est indépendant et aléatoire. La probabilité d'obtenir au moins 3 bons numéros sur 5 (sur 90) est d'environ 0,082 %, soit 1 chance sur 1 217, et aucune analyse de l'historique ne peut améliorer cette probabilité tant que le tirage reste équitable.
+Les stratégies "numéros chauds / froids / à grand écart", le facteur chance et la rétro-ingénierie ne battent pas le hasard sur un tirage équitable (vérifié par simulation Monte Carlo).
+Conséquences concrètes pour le site :
+
+Le mot "prédiction" est toujours accompagné de "recommandation statistique" ou "aide à la décision".
+Chaque page affiche un avertissement visible : « Outil d'analyse statistique. Aucune méthode ne garantit ni n'augmente la probabilité de gagner. Le jeu comporte des risques d'addiction. Jouez de manière responsable. »
+Le site ne vend pas de numéros "garantis" et ne facture pas l'accès aux recommandations.
+Aucune apparence de partenariat officiel avec la Lonaci ou ODO GROUP si elle n'existe pas.
+PARTIE A — HISTORIQUES
+Cette partie décrit la collecte, le stockage et l'actualisation de l'historique des tirages.
+
+A.1 — Sources des données
+Source principale : application mobile Lotto Matrice Plus (Android com.lotomatriceplus.odo, iOS id 6746102968, éditée par ODO GROUP).
+
+Méthodes de récupération, par ordre de fiabilité :
+
+Reverse-engineering de l'API de l'application (méthode préférée) : décompiler l'APK avec jadx ou apktool, identifier les endpoints API, reconstruire un client Python/Node qui les interroge directement. Confirmer avec mitmproxy ou Charles Proxy sur un émulateur Android.
+Automatisation d'un émulateur Android : BlueStacks / Android Studio Emulator + Appium ou UIAutomator pour naviguer dans l'app et extraire les résultats affichés.
+Export manuel : si l'app permet d'exporter l'historique (PDF, CSV), automatiser la récupération puis parser.
+Sources complémentaires obligatoires (fiabilisation et complétion) :
+Site web officiel Lonaci.
+Page Facebook officielle « Loto Bonheur Lonaci Officiel ».
+Comparaison croisée : si 2 sources donnent le même résultat, on le valide.
+L'accès aux données doit respecter les conditions d'utilisation de l'application et la législation ivoirienne. Privilégier les sources officielles si l'API est protégée.
+
+A.2 — Périmètre des données
+Profondeur obligatoire : depuis 2020 jusqu'au dernier tirage sorti (soit au minimum ~6 ans d'historique). Si une source remonte plus loin, l'utiliser.
+Pour chaque tirage :
+Date (AAAA-MM-JJ)
+Heure précise du tirage (HH:MM)
+Numéro de tirage / numéro du jour (1er, 2e, 3e tirage de la journée)
+Les 5 numéros gagnants (dans l'ordre de tirage si disponible)
+Tranche horaire de jeu associée (matin, midi, après-midi, soir)
+Source de la donnée
+Nettoyage et déduplication : un même tirage peut arriver de plusieurs sources ; garder une seule occurrence, la plus fiable.
+A.3 — Stockage
+Base PostgreSQL (ou SQLite en dev). Schéma minimal :
+
+sql
+
+CREATE TABLE draws (
+  id            SERIAL PRIMARY KEY,
+  draw_date     DATE NOT NULL,
+  draw_time     TIME NOT NULL,
+  slot          TEXT NOT NULL,         -- 'morning' | 'noon' | 'afternoon' | 'evening'
+  draw_index    INT,                   -- 1er, 2e tirage de la journée
+  numbers       INT[] NOT NULL,        -- 5 numéros gagnants
+  source        TEXT NOT NULL,
+  fetched_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (draw_date, draw_time)
+);
+CREATE INDEX ON draws (draw_date);
+CREATE INDEX ON draws (slot);
+A.4 — Actualisation automatique
+Tâche planifiée (cron) qui récupère les nouveaux tirages toutes les heures pendant les plages de tirage.
+Script idempotent : re-télécharger ne crée pas de doublons.
+Bouton "Actualiser l'historique" dans l'interface admin, pour relancer manuellement la récupération si une mise à jour a été manquée.
+L'utilisateur final peut voir sur la page d'accueil la date du dernier tirage intégré dans la base, pour vérifier que l'historique est à jour.
+PARTIE B — PRÉDICTIONS
+L'espace Prédictions produit, pour chaque heure de tirage de la journée, 5 numéros recommandés selon trois méthodes indépendantes. L'utilisateur choisit l'heure du prochain tirage, puis consulte les trois méthodes dans des onglets séparés. Un panneau de comparaison affiche les numéros retenus par consensus.
+
+Présentation obligatoire sur les trois onglets : « Recommandation statistique fondée sur l'historique. Ne garantit pas un gain. »
+
+B.1 — Sélection de l'heure de tirage
+L'utilisateur sélectionne :
+
+La date du tirage à venir (par défaut : aujourd'hui ou demain selon l'heure courante).
+L'heure du tirage à venir (par exemple : 08h00, 12h00, 16h00, 20h00 — à confirmer selon les horaires réels du Loto Bonheur CI).
+Les trois méthodes sont calculées pour cette même heure et cette même date, afin d'être comparables.
+
+B.2 — Méthode 1 : Fréquences de sortie
+Principe : recommander les 5 numéros les plus fréquemment sortis sur l'historique filtré par la tranche horaire sélectionnée.
+
+Affichage :
+
+Les 5 numéros recommandés.
+Pour chaque numéro : sa fréquence, son écart actuel (nombre de tirages depuis la dernière sortie).
+La probabilité théorique d'avoir 3, 4 ou 5 bons (rappel : 1 chance sur 1 217 pour au moins 3 bons).
+Un générateur aléatoire pur comme alternative "sans stratégie".
+Le détail du calcul (score, fenêtre, test du chi²) est en Partie C.1.
+
+B.3 — Méthode 2 : Fréquences + Facteur Chance
+Principe : combiner les fréquences historiques avec un calcul personnel fondé sur l'heure exacte et la date du tirage, qui fait intervenir un paramètre hasard.
+
+Affichage :
+
+Les 5 numéros recommandés (issus du croisement entre le calcul "chance" et le top-fréquence).
+Pour chaque numéro : son origine ("issu du facteur chance" / "issu du top-fréquence" / "présent dans les deux").
+Un encadré "Trace du calcul" montrant H, S, Op1, Op3, les itérations, et les nombres candidats — pour que l'utilisateur puisse vérifier le calcul lui-même.
+Le détail de la formule et de l'algorithme est en Partie C.2.
+
+B.4 — Méthode 3 : Rétro-ingénierie mathématique + Fréquences
+Principe : rechercher une fonction mathématique qui aurait permis de reproduire les tirages précédents (en prenant en compte la matrice de jeu, les fréquences, les écarts, la tranche horaire), puis l'appliquer au tirage à venir. La méthode est révisée automatiquement à chaque nouveau tirage jusqu'à obtenir ≥ 2 numéros corrects en rétro-validation.
+
+Affichage :
+
+Les 5 numéros recommandés pour le tirage à venir.
+Un encadré "Trace de la dernière révision" : paramètres retenus, nombre d'itérations, nombre de corrects obtenus sur le dernier tirage passé.
+Un avertissement scientifique visible : la rétro-validation sur le passé ne garantit pas la performance future.
+Le détail de la boucle de révision et des features est en Partie C.3.
+
+B.5 — Panneau de comparaison (consensus)
+Au-dessus des trois onglets, un panneau "Consensus des 3 méthodes" affiche :
+
+Les numéros retenus par au moins 2 des 3 méthodes.
+Ces numéros sont mis en évidence comme "consensus" (couleur distincte).
+Si aucun numéro commun : message "Aucun consensus pour ce tirage."
+B.6 — Probabilités théoriques affichées
+Sur les trois onglets, afficher (inchangées) :
+
+Au moins 3 bons : ≈ 1 chance sur 1 217
+Au moins 4 bons : ≈ 1 chance sur 103 167
+5 bons : ≈ 1 chance sur 43 949 268
+avec la mention : « Aucune méthode ne modifie ces probabilités théoriques. »
+
+PARTIE C — PROCESSUS DÉTAILLÉ DES MÉTHODES
+Cette partie est une annexe technique. Elle n'est pas affichée par défaut dans l'espace Prédictions, mais accessible via un lien "Voir le processus de calcul" sous chaque onglet, pour les utilisateurs curieux. Elle décrit précisément les algorithmes à implémenter.
+
+C.1 — Processus de la Méthode 1 (Fréquences)
+Étapes
+Filtrer l'historique par la tranche horaire sélectionnée (matin, midi, après-midi, soir).
+Sur la période filtrée, calculer pour chaque numéro n ∈ [1,90] :
+La fréquence absolue : nombre de sorties.
+La fréquence relative : % de tirages où le numéro est sorti.
+L'écart actuel : nombre de tirages depuis la dernière sortie.
+Calculer un score par numéro, combinaison pondérée de la fréquence et de l'écart.
+Trier par score décroissant, garder le top 5.
+Proposer en alternative un second top 5 fondé sur les écarts les plus élevés ("numéros en retard").
+Paramètres
+Fenêtre de fréquence T : paramétrable (90 jours, 1 an, tout l'historique depuis 2020).
+Test du chi² : si un numéro s'écarte significativement de la théorie (p < 0,01), il est signalé et son score est ajusté à la hausse (c'est ici que peut exister une vraie valeur prédictive, si le tirage est biaisé).
+C.2 — Processus de la Méthode 2 (Facteur Chance)
+C.2.1 — Paramètres d'entrée
+H = heure de sortie du jeu à la minute près, en notation décimale :
+10h30 → 10.30
+14h05 → 14.05
+08h00 → 8.0
+08h45 → 8.45
+J = jour (entier)
+M = mois (entier)
+A = année (entier)
+S = J + M + A (somme "date")
+C.2.2 — Les trois opérations du facteur chance
+Opération A : Op1 = H / S
+Opération B (divisions successives) : on part de r0 = Op1, puis on calcule itérativement r_i = H / r_{i-1} pour i = 1..5. Les résultats successifs produisent des décimales supplémentaires à exploiter.
+Opération C : Op3 = S / H
+Note technique : avec cette définition, l'opération B oscille entre H/S et S/H (car r1 = H/Op1 = S, r2 = H/r1 = H/S = Op1, etc.). Deux options pour l'implémentation :
+
+Option simple (fidèle à la formule) : garder la formule telle quelle.
+Option enrichie (recommandée) : faire varier le diviseur à chaque itération, par exemple r_i = H / (r_{i-1} + i), pour obtenir des décimales véritablement nouvelles à chaque étape. À valider avec l'utilisateur.
+C.2.3 — Extraction des nombres candidats
+Pour chaque résultat (Op1, chaque r_i de l'opération B, Op3) :
+
+Extraire les chiffres après la virgule (au moins 40 décimales).
+Regrouper les chiffres par paires consécutives → nombres de 00 à 99.
+Ne conserver que les paires comprises entre 1 et 90 (valeurs valides du Loto Bonheur CI).
+Constituer la liste des nombres candidats issus de chaque opération.
+C.2.4 — Union et croisement avec l'historique
+Union des candidats des trois opérations (déduplication, ordre d'apparition conservé).
+Croisement avec le top des numéros les plus fréquents de l'historique (filtré par tranche horaire) :
+Les numéros présents à la fois dans l'union "chance" et dans le top-fréquence sont mis en avant comme "nombres en commun".
+Ce sont eux qui constituent la prédiction finale de la Méthode 2.
+Si plus de 5 numéros en commun : sélectionner les 5 au score le plus élevé.
+Si moins de 5 : compléter par les candidats "chance" au score fréquence le plus élevé, puis par le top-fréquence restant.
+C.2.5 — Algorithme de référence (pseudo-code)
+python
+
+def heure_vers_decimale(h, m):
+    return h + m / 100.0   # 10h30 -> 10.30
+
+def extraire_decimales(x, n=40):
+    # renvoie la liste des n chiffres apres la virgule de |x|
+
+def paires_vers_1_90(decimales):
+    # regroupe par paires consecutives, ne garde que 1..90
+
+def facteur_chance(h, m, jour, mois, annee):
+    H = heure_vers_decimale(h, m)
+    S = jour + mois + annee
+    op1 = H / S                # Operation A
+    op3 = S / H                # Operation C
+    # Operation B : divisions successives
+    r = op1
+    successives = []
+    for i in range(5):
+        r = H / r
+        successives.append(r)
+    # Extraction des candidats (1..90) de chaque
+    cand_op1  = paires_vers_1_90(extraire_decimales(op1))
+    cand_op3  = paires_vers_1_90(extraire_decimales(op3))
+    cand_succ = paires_vers_1_90(extraire_decimales_de_tous(successives))
+    # Union dedupliquee
+    union = dedup_preserve_ordre(cand_op1 + cand_succ + cand_op3)
+    return {"H":H, "S":S, "op1":op1, "op3":op3,
+            "successives":successives, "union":union}
+Une implémentation Python complète et testée est fournie dans scripts/algorithme_chance.py (4 cas de test couverts). Le développeur doit la porter en TypeScript côté site.
+
+C.3 — Processus de la Méthode 3 (Rétro-ingénierie)
+C.3.1 — Paramètres pris en compte
+Tous les paramètres utiles liés à la loterie CI, accessibles notamment via l'app Lotto Matrice Plus :
+
+Historique des tirages (date, heure, 5 numéros gagnants).
+Matrice de jeu : la grille de numéros telle que publiée par l'app (position ligne/colonne de chaque numéro, supposée 9×10 → 1..90). Pour chaque numéro, sa position (ligne, colonne) devient une feature.
+Tranche horaire du tirage.
+Jour de la semaine, jour du mois, mois.
+Fréquences et écarts calculés (fenêtres glissantes).
+Présence dans les L tirages précédents (lags 1..L).
+C.3.2 — Principe de la méthode
+Construction des features : pour chaque numéro cible n ∈ [1,90], on calcule un vecteur de caractéristiques décrivant son comportement passé et son contexte.
+Modèle : un modèle linéaire (ou régression logistique) avec poids w_j produit un score par numéro : score(n) = Σ w_j · feature_j(n).
+Top 5 des scores = prédiction.
+Boucle de révision (cœur de la méthode) :
+On cache le dernier tirage connu.
+On entraîne/ajuste les poids sur les tirages précédents.
+On teste la prédiction du modèle sur le dernier tirage caché.
+Si le modèle obtient < 2 numéros corrects, on révise la méthode : augmenter L (lag), élargir/réduire T (fenêtre de fréquence), ajouter des features (matrice, tranche horaire), réajuster les poids par descente de gradient.
+On répète jusqu'à obtenir ≥ 2 numéros corrects sur le dernier tirage (ou jusqu'à un nombre maximal d'itérations).
+Application au tirage futur : une fois la méthode validée (≥ 2 corrects en rétro-validation), on l'applique pour prédire le tirage suivant.
+Ré-apprentissage continu : après chaque tirage réel, la boucle de révision est relancée pour intégrer la nouvelle donnée.
+C.3.3 — Avertissement scientifique obligatoire à afficher
+« Cette méthode atteint son objectif de reproduire ≥ 2 numéros sur les tirages passés (par construction — c'est de l'ajustement sur le passé). Cela ne garantit pas de reproduire ≥ 2 numéros sur les tirages futurs. Sur un tirage équitable, la performance future reste en moyenne celle du hasard. La méthode a un intérêt descriptif et exploratoire, pas prédictif garanti. »
+
+C.3.4 — Algorithme de référence (pseudo-code)
+python
+
+def features_pour_numero(n, history, T, L, slot):
+    freq = mean(1 if n in t else 0 for t in history[-T:])
+    ecart = nb_tirages_depuis_derniere_sortie(n, history)
+    lags = [1 if n in history[-k-1] else 0 for k in range(L)]
+    ligne, col = position_matrice(n)            # grille 9x10 -> 1..90
+    slot_oh = one_hot(slot)                     # morning/noon/evening
+    return [freq, ecart, *lags, ligne/8, col/9, *slot_oh]
+
+def predire_top5(history, T, L, slot, weights):
+    scores = [(n, sum(w*x for w,x in zip(weights,
+              features_pour_numero(n,history,T,L,slot)))) for n in range(1,91)]
+    return [n for n,_ in sorted(scores, key=lambda x:-x[1])[:5]]
+
+def reviser_jusqua_2corrects(history, max_iter=20):
+    train, cible = history[:-1], history[-1]
+    best = None
+    for it in range(max_iter):
+        T, L = config(it)                       # on fait varier T et L
+        weights = init_poids(dim_features(T,L))
+        for ep in range(50):                     # ajustement sur tirages recents
+            for t in train[-10:-1]:
+                pred = predire_top5(train[:t], T, L, slot, weights)
+                # recompense/punition des poids selon corrects/incorrects
+                ajuster_poids(weights, pred, t)
+        pred_final = predire_top5(train, T, L, slot, weights)
+        c = len(set(pred_final) & set(cible))
+        if best is None or c > best[3]: best = (T, L, weights, c, pred_final)
+        if c >= 2: break
+    return best
+Une implémentation Python complète et testée est fournie dans scripts/algorithme_retro_ingenierie.py. Le test démontre : (a) la boucle atteint ≥ 2 corrects en 2 itérations sur le tirage passé, (b) le test honnête sur 200 tirages futurs donne 1,0 % de ≥ 2 corrects — sous la référence théorique de 2,33 % — confirmant que la performance future reste celle du hasard.
+
+6. ANALYSES STATISTIQUES COMPLÉMENTAIRES
+Pour chaque numéro (1 à 90) et agrégé par tranche horaire :
+
+Fréquence absolue : nombre de sorties sur la période.
+Fréquence relative : % de tirages où le numéro est sorti.
+Écart actuel : nombre de tirages depuis la dernière sortie.
+Écart maximum historique et écart moyen.
+Test du chi² : compare la fréquence observée de chaque numéro à la fréquence théorique attendue (5/90 ≈ 5,56 % par tirage). Un numéro dont l'écart au théorique est statistiquement significatif (p < 0,01) est signalé comme anomalie potentielle.
+Analyse par tranche horaire : tester avec un chi² par slot.
+Paires et triplets : fréquence des sorties simultanées de 2 ou 3 numéros (heatmaps).
+Somme et parité : distribution de la somme des 5 numéros (devrait suivre une courbe en cloche), répartition pairs/impairs.
+Toutes les analyses doivent pouvoir être recalculées sur une période paramétrable (7 jours, 30 jours, 90 jours, 1 an, depuis 2020, tout l'historique) et filtrées par tranche horaire.
+
+7. INTERFACE UTILISATEUR ET GRAPHIQUES
+Principes
+Interface intuitive : navigation en 3 clics maximum vers n'importe quelle fonction.
+Mobile-first (les joueurs consultent depuis leur téléphone).
+Thème : sobre, lisible, couleurs inspirées du Loto Bonheur CI (à définir, éviter le tape-à-l'œil).
+Langue : français.
+Pages principales
+Accueil : dernier tirage, prochain tirage à venir (avec compte à rebours), date du dernier tirage intégré en base, accès rapide aux prédictions.
+Espace Prédictions : sélecteur de date + heure → les trois onglets (Fréquences / Facteur Chance / Rétro-ingénierie), chacun avec 5 numéros + avertissements + lien "Voir le processus de calcul" (vers Partie C). Panneau de comparaison avec les numéros en consensus entre les 3 méthodes.
+Historique : tableau paginé + filtres (date, tranche, numéro) + recherche. Affichage du dernier tirage intégré et bouton "Actualiser".
+Statistiques : onglets par type d'analyse (fréquences, écarts, chi², paires, somme).
+Anomalies détectées : page dédiée affichant les numéros dont le comportement s'écarte significativement du théorique.
+À propos / Mentions légales : avertissements, méthode, sources.
+Graphiques (bibliothèque recommandée : Recharts ou ECharts, ou D3 pour les visualisations avancées)
+Obligatoires et de haute qualité visuelle :
+
+Histogramme des fréquences des 90 numéros (barres, avec ligne théorique de référence).
+Heatmap 90 numéros × tranches horaires des fréquences.
+Heatmap des écarts actuels (numéros en retard, en couleur).
+Courbe temporelle de la somme des numéros tirés (avec bande théorique).
+Heatmap des paires (numéros sortis ensemble).
+Visualisation du test du chi² par numéro, avec seuil de significativité.
+Jauge circulaire de la probabilité de gain pour chaque palier (3, 4, 5 bons).
+Tous les graphiques doivent être interactifs (tooltips au survol, zoom, filtrage par période) et responsive.
+
+8. STACK TECHNIQUE RECOMMANDÉE
+Frontend : Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui.
+Graphiques : Recharts (simple) ou ECharts (riche), D3 pour le custom.
+Backend / API : Next.js Route Handlers ou API Routes.
+Base de données : PostgreSQL (Neon / Supabase en production, SQLite en dev local).
+ORM : Prisma.
+Scraping / collecte : Python (requests, beautifulsoup4, httpx) ou Node (playwright, axios). Scripts lancés en cron.
+Tâches planifiées : node-cron ou service type Railway/Render Cron.
+Déploiement : Vercel (frontend + API) + service séparé pour le scraper (Render, Railway, ou VPS).
+Tests : Vitest (frontend), pytest (scraper).
+Si l'environnement cible est un site statique sans backend, produire un prototype HTML/CSS/JS autonome avec données d'exemple intégrées, avant de brancher le vrai backend.
+
+9. AVERTISSEMENTS LÉGAUX ET ÉTHIQUES
+Cadre légal ivoirien : la Lonaci détient le monopole des loteries en CI. Le site ne doit pas se présenter comme un opérateur de jeu, ne doit pas encaisser de mises, et ne doit pas laisser entendre un partenariat officiel.
+Affichage permanent de l'avertissement sur les risques de jeu et d'addiction.
+Lien vers une aide aux joueurs addictés si elle existe en CI.
+Mentions légales claires : éditeur du site, hébergeur, sources des données, méthode de calcul.
+Les recommandations sont gratuites et fournies "telles quelles", sans garantie.
+10. LIVRABLES ATTENDUS
+Dépôt Git structuré (frontend, scraper, base de données, documentation).
+Script de scraping fonctionnel qui peuple la base avec l'historique depuis 2020 jusqu'au dernier tirage sorti, avec actualisation automatique.
+Site web déployé sur une URL accessible.
+Documentation : README d'installation, schéma de base, description des algorithmes d'analyse.
+Tableau de bord avec toutes les analyses et graphiques demandés.
+Espace "Prédictions" opérationnel avec les trois onglets (Méthode 1, 2, 3) par heure de tirage, le panneau de comparaison, et les liens "Voir le processus de calcul" vers la Partie C.
+Tests : au moins les calculs statistiques (chi², fréquences), l'algorithme du facteur chance (Partie C.2) et l'algorithme de rétro-ingénierie (Partie C.3) sont testés unitairement. Pour ce dernier, un test honnête de performance future est inclus.
+11. CRITÈRES D'ACCEPTATION
+ Le site charge en moins de 3 secondes sur mobile.
+ L'historique contient les tirages depuis 2020 jusqu'au dernier tirage sorti.
+ L'actualisation automatique fonctionne (cron horaire) et un bouton "Actualiser" permet de relancer manuellement.
+ La date du dernier tirage intégré est visible sur l'accueil.
+ Les fréquences affichées correspondent exactement aux données en base (vérifiable).
+ Le test du chi² détecte correctement un biais injecté artificiellement (test de non-régression).
+ L'espace Prédictions propose bien les trois onglets (Méthode 1 / 2 / 3) et un panneau de comparaison avec les numéros en consensus.
+ Chaque méthode produit 5 numéros pour l'heure de tirage sélectionnée par l'utilisateur.
+ Chaque onglet a un lien "Voir le processus de calcul" menant à la Partie C correspondante.
+ La Méthode 2 affiche la trace complète du calcul (H, S, Op1, Op3, itérations, décimales, union, croisement avec top-fréquence) et est déterministe.
+ La Méthode 3 implémente la boucle de révision : cache le dernier tirage, ajuste la méthode jusqu'à obtenir ≥ 2 corrects (ou max_iter), puis applique au tirage futur. Affiche la trace de la dernière révision.
+ L'avertissement "aucune garantie de gain" est visible sur chaque page, y compris les trois onglets de l'espace Prédictions.
+ Le scraper est idempotent (relancer ne crée pas de doublons).
+12. HORS-PÉRIMÈTRE (INTERDIT)
+Promesse de gain garanti.
+Encaissement de mises ou paiement pour "numéros gagnants".
+Apparence de partenariat officiel avec la Lonaci ou ODO GROUP.
+Publication des numéros machine (l'utilisateur veut uniquement les 5 numéros gagnants).
+Tout contenu présentant les recommandations comme "prédiction certaine".
+13. PREMIÈRES ÉTAPES À EXÉCUTER
+Confirmer le format exact du Loto Bonheur CI : nombre de numéros (90 ?), combien tirés (5 ?), horaires précis des tirages dans la journée. Vérifier sur le site Lonaci et l'app Lotto Matrice Plus.
+Décompiler l'APK de Lotto Matrice Plus et identifier l'API utilisée. Si API trouvée, documenter ses endpoints. Sinon, plan B (émulateur + automatisation).
+Récupérer un échantillon de 30 jours de tirages pour valider la chaîne de bout en bout (scrap → base → affichage).
+Étendre à l'historique complet (depuis 2020 jusqu'au dernier tirage). Si l'app ne remonte pas assez loin, chercher des archives complémentaires (Lonaci, presse, réseaux sociaux officiels).
+Implémenter les analyses statistiques et vérifier par tests unitaires.
+Implémenter la Méthode 2 en TypeScript (portage de scripts/algorithme_chance.py fourni) ; écrire les tests unitaires (déterminisme, extraction des décimales, candidats 1..90, union, croisement avec top-fréquence).
+Implémenter la Méthode 3 en TypeScript (portage de scripts/algorithme_retro_ingenierie.py fourni) ; écrire la boucle de révision, les tests unitaires, et le test honnête de performance future.
+Construire l'interface page par page, en commençant par l'espace Prédictions avec ses trois onglets, son panneau de comparaison, et ses liens "Voir le processus de calcul" vers la Partie C.
+Déployer et tester sur mobile.
+Commence par les étapes 1 et 2, puis fais un point avant d'aller plus loin.
+
+14. PARAMÈTRES À COMPLÉTER AVANT UTILISATION
+Profondeur d'historique : depuis 2020 jusqu'au dernier tirage, déjà fixé.
+Couleurs / charte graphique souhaitée (sinon : choix par défaut sobre).
+Nom de domaine souhaité.
+Éditeur du site (nom, contact) pour les mentions légales.
+Hébergement cible (Vercel, VPS, etc.).
+Choix pour l'opération B de la Méthode 2 : option simple (fidèle à la formule, mais l'itération oscille sans apporter de décimales nouvelles) OU option enrichie (variante r_i = H / (r_{i-1} + i) ou similaire, qui produit de vraies nouvelles décimales à chaque itération). Recommandation : option enrichie, plus riche en candidats.
+Matrice de jeu du Loto Bonheur CI : confirmer la structure exacte de la grille (hypothèse retenue : 9 lignes × 10 colonnes = 1..90) à partir de l'app Lotto Matrice Plus, et l'ajuster si besoin dans position_matrice(n).
+Seuil de révision de la Méthode 3 : nombre minimal de numéros corrects à atteindre en rétro-validation (2 par défaut), et nombre maximal d'itérations de la boucle de révision (20 par défaut).
