@@ -1,104 +1,42 @@
 import { Draw, SlotDefinition } from '../types/lottery';
+import { RECENT_LMP_CI_DRAWS } from './recentLottoMatricePlusDraws';
 
 export const SLOTS_CONFIG: SlotDefinition[] = [
   {
     slot: 'morning',
     time: '10:00',
     decimalHour: 10.0,
-    name: 'AKWABA',
-    label: '10h00 · AKWABA (Matin)',
-    description: 'Premier tirage matinal officiel Lonaci',
+    name: 'AKWABA / RÉVEIL',
+    label: '10h00 · Tirage Matin (Akwaba / Soutra / Cash)',
+    description: 'Tirage matinal officiel Lonaci sur Loto Matrice Plus',
   },
   {
     slot: 'noon',
     time: '13:00',
     decimalHour: 13.0,
-    name: 'ÉTOILE',
-    label: '13h00 · ÉTOILE (Midi)',
-    description: 'Tirage du milieu de journée Lonaci',
+    name: 'ÉTOILE / PRESTIGE',
+    label: '13h00 · Tirage Midi (Étoile / Solution / Prestige)',
+    description: 'Tirage du milieu de journée Lonaci sur Loto Matrice Plus',
   },
   {
     slot: 'afternoon',
     time: '16:00',
     decimalHour: 16.0,
-    name: 'FORTUNE',
-    label: '16h00 · FORTUNE (Après-midi)',
-    description: 'Tirage de l’après-midi Lonaci',
+    name: 'FORTUNE / AWALE',
+    label: '16h00 · Tirage Après-Midi (Fortune / Wari / Awale)',
+    description: 'Tirage de l’après-midi Lonaci sur Loto Matrice Plus',
   },
   {
     slot: 'evening',
     time: '18:15',
     decimalHour: 18.25,
-    name: 'DIAMANT',
-    label: '18h15 · DIAMANT (Soirée)',
-    description: 'Tirage de clôture de soirée Lonaci',
+    name: 'DIAMANT / AFTERWORK',
+    label: '18h15 · Tirage Soirée (Diamant / Afterwork / Espoir)',
+    description: 'Tirage officiel de soirée Lonaci sur Loto Matrice Plus',
   },
 ];
 
-// Pseudorandom generator with seed for deterministic, realistic historical dataset
-function seededRandom(seed: number) {
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-function generateSeedDraws(): Draw[] {
-  const draws: Draw[] = [];
-  const rng = seededRandom(19941102);
-
-  // We generate realistic draws going back to 2020 through Nov 2026
-  // Recent high density (every day for recent months, sample across older years)
-  const startDate = new Date('2024-01-01T00:00:00Z');
-  const endDate = new Date('2026-11-02T00:00:00Z'); // Current time
-  
-  let drawCounter = 1;
-  const curr = new Date(startDate);
-
-  while (curr <= endDate) {
-    const yyyy = curr.getUTCFullYear();
-    const mm = String(curr.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(curr.getUTCDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-
-    // For every day, generate the 4 standard slots
-    for (let sIdx = 0; sIdx < SLOTS_CONFIG.length; sIdx++) {
-      const slotDef = SLOTS_CONFIG[sIdx];
-      
-      // Draw 5 unique numbers from 1 to 90
-      const pool = Array.from({ length: 90 }, (_, i) => i + 1);
-      const numbers: number[] = [];
-      for (let k = 0; k < 5; k++) {
-        const idx = Math.floor(rng() * pool.length);
-        numbers.push(pool[idx]);
-        pool.splice(idx, 1);
-      }
-      numbers.sort((a, b) => a - b);
-
-      draws.push({
-        id: `draw-${yyyy}${mm}${dd}-${slotDef.slot}`,
-        drawDate: dateStr,
-        drawTime: slotDef.time,
-        slot: slotDef.slot,
-        drawIndex: sIdx + 1,
-        drawName: slotDef.name,
-        numbers,
-        source: 'Lotto Matrice Plus / Lonaci Officiel',
-        fetchedAt: `${dateStr}T${slotDef.time}:00Z`,
-      });
-      drawCounter++;
-    }
-
-    curr.setUTCDate(curr.getUTCDate() + 1);
-  }
-
-  // Ensure draws are sorted chronologically descending (latest first)
-  return draws.reverse();
-}
-
-const STORAGE_KEY = 'loto_bonheur_ci_draws_v1';
+const STORAGE_KEY = 'loto_bonheur_ci_draws_lmp_v2';
 const BIAS_STORAGE_KEY = 'loto_bonheur_ci_bias_active';
 
 export function getStoredDraws(): Draw[] {
@@ -114,20 +52,182 @@ export function getStoredDraws(): Draw[] {
     // fallback
   }
 
-  const generated = generateSeedDraws();
+  // Initial real draws from Loto Matrice Plus
+  const initial = RECENT_LMP_CI_DRAWS;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(generated));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
   } catch {
-    // localStorage may be constrained
+    // quota limit fallback
   }
-  return generated;
+  return initial;
 }
 
 export function saveStoredDraws(draws: Draw[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draws));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draws.slice(0, 1500)));
   } catch (err) {
-    console.error('Failed to save draws to localStorage', err);
+    console.warn('LocalStorage save warning (size limit)', err);
+  }
+}
+
+/**
+ * Loads the complete 14,433 draws from Loto Matrice Plus (2020-2026)
+ */
+export async function loadFullLottoMatricePlusHistory(): Promise<Draw[]> {
+  try {
+    const res = await fetch('/data/lottoMatricePlus_ci_draws.json');
+    if (res.ok) {
+      const allDraws: Draw[] = await res.json();
+      if (Array.isArray(allDraws) && allDraws.length > 0) {
+        return allDraws;
+      }
+    }
+  } catch (err) {
+    console.error('Erreur de chargement du fichier complet des tirages:', err);
+  }
+  return getStoredDraws();
+}
+
+/**
+ * Queries the live Firestore API of Loto Matrice Plus for the very latest draws.
+ */
+export async function syncLatestFromLottoMatricePlus(currentDraws: Draw[]): Promise<{
+  updatedDraws: Draw[];
+  newCount: number;
+  latestDraw: Draw;
+}> {
+  const API_KEY = 'AIzaSyDj92vbRFcoaLP5J8NT5ZwTXnZtQtvdBaI';
+  const PROJECT_ID = 'spotboxlive-music';
+  const ENDPOINT = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery?key=${API_KEY}`;
+
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'results' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'country.short_name' },
+          op: 'EQUAL',
+          value: { stringValue: 'ci' },
+        },
+      },
+      orderBy: [
+        {
+          field: { fieldPath: 'date.firestoreTime' },
+          direction: 'DESCENDING',
+        },
+      ],
+      limit: 5,
+    },
+  };
+
+  try {
+    const response = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(query),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur réseau HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const fetchedDraws: Draw[] = [];
+    const seenIds = new Set(currentDraws.map((d) => d.id));
+
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        if (!item || !item.document) continue;
+        const f = item.document.fields || {};
+        const shortDate = f.date?.mapValue?.fields?.shortDate?.stringValue;
+        const firestoreTime = f.date?.mapValue?.fields?.firestoreTime?.timestampValue;
+        
+        let isoDate = '2026-11-03';
+        if (firestoreTime) {
+          isoDate = firestoreTime.slice(0, 10);
+        } else if (shortDate && shortDate.includes('/')) {
+          const parts = shortDate.split('/');
+          isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+
+        const resultsArr = f.resultats?.arrayValue?.values || [];
+
+        resultsArr.forEach((r: any, idx: number) => {
+          const rf = r.mapValue?.fields || {};
+          const rawName = (rf.name?.stringValue || '').trim().replace(/🇨🇮/g, '').trim();
+          const rawTime = String(rf.time?.integerValue || rf.time?.stringValue || '').trim();
+          const tirage = (rf.tirage?.stringValue || '').trim().replace(/🇨🇮/g, '').trim();
+
+          const winStrings = (rf.win?.arrayValue?.values || []).map((v: any) =>
+            String(v.stringValue || '').trim()
+          );
+          const macStrings = (rf.mac?.arrayValue?.values || []).map((v: any) =>
+            String(v.stringValue || '').trim()
+          );
+
+          const winNums = winStrings
+            .map((s: string) => parseInt(s, 10))
+            .filter((n: number) => !isNaN(n) && n >= 1 && n <= 90);
+
+          const macNums = macStrings
+            .map((s: string) => parseInt(s, 10))
+            .filter((n: number) => !isNaN(n) && n >= 1 && n <= 90);
+
+          if (winNums.length === 5) {
+            const hourFormatted = rawTime ? (rawTime.length === 1 ? `0${rawTime}:00` : `${rawTime}:00`) : '10:00';
+            const drawId = `lmp-ci-${isoDate}-${rawTime || idx}-${rawName.replace(/\s+/g, '_')}`;
+
+            let slot: 'morning' | 'noon' | 'afternoon' | 'evening' = 'morning';
+            const hourNum = parseInt(rawTime, 10);
+            if (hourNum >= 12 && hourNum < 15) slot = 'noon';
+            else if (hourNum >= 15 && hourNum < 18) slot = 'afternoon';
+            else if (hourNum >= 18) slot = 'evening';
+
+            if (!seenIds.has(drawId)) {
+              seenIds.add(drawId);
+              fetchedDraws.push({
+                id: drawId,
+                drawDate: isoDate,
+                drawTime: hourFormatted,
+                slot,
+                drawIndex: idx + 1,
+                drawName: rawName || 'Tirage CI',
+                numbers: winNums,
+                machineNumbers: macNums.length === 5 ? macNums : undefined,
+                tirage: tirage !== '.' ? tirage : undefined,
+                source: "Loto Matrice Plus (Historique Côte d'Ivoire)",
+                fetchedAt: firestoreTime || new Date().toISOString(),
+              });
+            }
+          }
+        });
+      }
+    }
+
+    const updated = [...fetchedDraws, ...currentDraws];
+    updated.sort((a, b) => {
+      if (a.drawDate !== b.drawDate) {
+        return b.drawDate.localeCompare(a.drawDate);
+      }
+      return b.drawTime.localeCompare(a.drawTime);
+    });
+
+    saveStoredDraws(updated);
+
+    return {
+      updatedDraws: updated,
+      newCount: fetchedDraws.length,
+      latestDraw: updated[0],
+    };
+  } catch (err) {
+    console.error('Erreur live sync Loto Matrice Plus:', err);
+    return {
+      updatedDraws: currentDraws,
+      newCount: 0,
+      latestDraw: currentDraws[0],
+    };
   }
 }
 
@@ -139,23 +239,20 @@ export function isArtificialBiasActive(): boolean {
   }
 }
 
-export function setArtificialBias(active: boolean): Draw[] {
+export function setArtificialBias(active: boolean, draws: Draw[]): Draw[] {
   try {
     localStorage.setItem(BIAS_STORAGE_KEY, active ? 'true' : 'false');
   } catch {
     // ignore
   }
 
-  let draws = getStoredDraws();
-  const BIASED_NUM_1 = 42; // Synthetic high-frequency bias
-  const BIASED_NUM_2 = 77; // Synthetic secondary bias
+  const BIASED_NUM_1 = 42;
+  const BIASED_NUM_2 = 77;
 
   if (active) {
-    // Inject artificial frequency into recent 100 draws for testing acceptance criterion 6
-    draws = draws.map((d, idx) => {
+    return draws.map((d, idx) => {
       if (idx < 150) {
         const newNumbers = [...d.numbers];
-        // Ensure 42 is present in 35% of these draws (theoretical is 5.5%)
         if (idx % 3 === 0 && !newNumbers.includes(BIASED_NUM_1)) {
           newNumbers[0] = BIASED_NUM_1;
           newNumbers.sort((a, b) => a - b);
@@ -169,22 +266,6 @@ export function setArtificialBias(active: boolean): Draw[] {
       return d;
     });
   } else {
-    // Reset to pure seed
-    draws = generateSeedDraws();
+    return getStoredDraws();
   }
-
-  saveStoredDraws(draws);
-  return draws;
-}
-
-export function resetDrawsDatabase(): Draw[] {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(BIAS_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-  const fresh = generateSeedDraws();
-  saveStoredDraws(fresh);
-  return fresh;
 }

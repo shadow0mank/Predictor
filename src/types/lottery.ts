@@ -12,7 +12,9 @@ export interface Draw {
   drawIndex: number; // 1, 2, 3, 4 of the day
   drawName: string; // Akwaba, Étoile, Fortune, Diamant, etc.
   numbers: number[]; // 5 winning numbers in [1..90]
-  source: string; // e.g. "Lotto Matrice Plus / Lonaci"
+  machineNumbers?: number[]; // 5 machine numbers in [1..90]
+  tirage?: string; // Tirage official index (e.g. 257)
+  source: string; // "Loto Matrice Plus (Historique Côte d'Ivoire)"
   fetchedAt: string; // ISO string
 }
 

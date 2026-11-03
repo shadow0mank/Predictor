@@ -78,7 +78,7 @@ export const CountdownHero: React.FC<CountdownHeroProps> = ({
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1 font-semibold text-[#0F3E2E] bg-emerald-50 px-2 py-0.5 rounded">
               <Database className="w-3.5 h-3.5 text-[#0F3E2E]" />
-              Dernier tirage certifié Lonaci
+              Dernier tirage certifié · Loto Matrice Plus
             </span>
             <span aria-hidden="true">·</span>
             <span className="flex items-center gap-1">
@@ -96,25 +96,48 @@ export const CountdownHero: React.FC<CountdownHeroProps> = ({
               Résultats officiels & numéros sortis
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              5 numéros tirés parmi 90. Analyse descriptive en temps réel calculée sur {totalDrawsCount} tirages archivés.
+              5 numéros tirés parmi 90. Analyse descriptive calculée sur {totalDrawsCount.toLocaleString('fr-FR')} tirages archivés.
             </p>
           </div>
 
           {/* Lottery Balls Grid */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 pt-1">
-            {latestDraw?.numbers.map((num, i) => (
-              <LotteryBall
-                key={i}
-                number={num}
-                variant="emerald"
-                size="lg"
-                label={`Pos ${i + 1}`}
-              />
-            ))}
+          <div className="space-y-2 pt-1">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
+              5 Numéros Gagnants (WIN) :
+            </div>
+            <div className="flex items-center gap-2.5 sm:gap-3.5">
+              {latestDraw?.numbers.map((num, i) => (
+                <LotteryBall
+                  key={i}
+                  number={num}
+                  variant="emerald"
+                  size="lg"
+                  label={`N°${i + 1}`}
+                />
+              ))}
+            </div>
+
+            {latestDraw?.machineNumbers && latestDraw.machineNumbers.length === 5 && (
+              <div className="pt-2">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono mb-1">
+                  5 Numéros Machine (MAC) :
+                </div>
+                <div className="flex items-center gap-2">
+                  {latestDraw.machineNumbers.map((num, i) => (
+                    <LotteryBall
+                      key={i}
+                      number={num}
+                      variant="cold"
+                      size="sm"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="text-[11px] text-slate-400 font-mono">
-            Source : {latestDraw?.source || 'Lotto Matrice Plus / Lonaci'} · Horodatage base : {latestDraw?.fetchedAt?.slice(0, 16)}
+          <div className="text-[11px] text-slate-500 font-mono">
+            Source unique : <span className="font-semibold text-emerald-800">Loto Matrice Plus (Historique Côte d'Ivoire)</span> · Horodatage : {latestDraw?.fetchedAt?.slice(0, 16)}
           </div>
         </div>
 

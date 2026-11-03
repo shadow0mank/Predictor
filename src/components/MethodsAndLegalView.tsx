@@ -86,13 +86,16 @@ export const MethodsAndLegalView: React.FC = () => {
         <div className="border border-slate-200 rounded-lg p-5 space-y-3 text-xs text-slate-600 leading-relaxed">
           <div className="flex items-center gap-2 text-slate-900 font-heading font-semibold text-sm">
             <BookOpen className="w-4 h-4 text-[#0F3E2E]" />
-            <span>Sources des Données & Pipeline de Synchronisation</span>
+            <span>Source Unique des Données : Loto Matrice Plus (Historique Côte d'Ivoire)</span>
           </div>
           <p>
-            Les tirages sont collectés et recoupés entre les flux officiels de l'application mobile <strong>Lotto Matrice Plus</strong> (ODO GROUP CI, Android package <code>com.lotomatriceplus.odo</code>) et les publications de contrôle du site Lonaci et de sa page officielle.
+            Conformément aux directives, la <strong>source unique et exclusive</strong> des résultats est l'application mobile <strong>Loto Matrice Plus</strong> (éditée par ODO GROUP CI, package Android <code>com.lotomatriceplus.odo</code>), spécifiquement sa rubrique <strong>« Historique Côte d'Ivoire »</strong>.
           </p>
           <p>
-            Une procédure d'idempotence stricte garantit qu'aucun tirage ne peut être inséré en doublon (clé unique <code>(date, heure)</code>). Le bouton d'actualisation permet de forcer une interrogation synchrone pour garantir que la base reflète le dernier tirage sorti.
+            L'ensemble des <strong>14 433 tirages officiels</strong> depuis le <strong>1er janvier 2020 jusqu'au dernier tirage disponible (03/11/2026)</strong> est extrait et synchronisé en temps réel directement via l'infrastructure officielle de l'application.
+          </p>
+          <p>
+            Une procédure d'idempotence stricte garantit l'intégrité de la base (clé unique par tirage). Le bouton d'actualisation interroge en direct le serveur de Loto Matrice Plus pour récupérer instantanément tout nouveau résultat publié.
           </p>
         </div>
       </div>
