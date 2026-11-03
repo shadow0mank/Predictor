@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, BookOpen, CheckCircle, Code2, AlertCircle } from 'lucide-react';
 
 interface TechnicalAnnexModalProps {
-  initialMethod?: 1 | 2 | 3;
+  initialMethod?: 1 | 2 | 3 | 4 | 5;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -12,7 +12,7 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<1 | 2 | 3>(initialMethod);
+  const [activeSubTab, setActiveSubTab] = useState<1 | 2 | 3 | 4 | 5>(initialMethod);
 
   if (!isOpen) return null;
 
@@ -42,7 +42,7 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
         </div>
 
         {/* Sub-tab navigation */}
-        <div className="flex border-b border-slate-200 bg-white px-6 gap-6 text-xs sm:text-sm font-medium">
+        <div className="flex flex-wrap border-b border-slate-200 bg-white px-6 gap-3 sm:gap-6 text-xs sm:text-sm font-medium">
           <button
             onClick={() => setActiveSubTab(1)}
             className={`py-3 border-b-2 transition-colors cursor-pointer ${
@@ -51,7 +51,7 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            C.1 · Méthode 1 (Fréquences & Chi²)
+            C.1 · Méthode 1 (Fréquences)
           </button>
           <button
             onClick={() => setActiveSubTab(2)}
@@ -61,7 +61,7 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            C.2 · Méthode 2 (Facteur Chance)
+            C.2 · Méthode 2 (Chance)
           </button>
           <button
             onClick={() => setActiveSubTab(3)}
@@ -71,9 +71,30 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            C.3 · Méthode 3 (Rétro-ingénierie & Boucle)
+            C.3 · Méthode 3 (Rétro-ingénierie)
+          </button>
+          <button
+            onClick={() => setActiveSubTab(4)}
+            className={`py-3 border-b-2 transition-colors cursor-pointer ${
+              activeSubTab === 4
+                ? 'border-[#0F3E2E] text-[#0F3E2E] font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            C.4 · Méthode 4 (Matrices CI)
+          </button>
+          <button
+            onClick={() => setActiveSubTab(5)}
+            className={`py-3 border-b-2 transition-colors cursor-pointer ${
+              activeSubTab === 5
+                ? 'border-[#0F3E2E] text-[#0F3E2E] font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            C.5 · Méthode 5 (GhanaWeb & Fréquences)
           </button>
         </div>
+
 
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm text-slate-700 leading-relaxed">
@@ -213,7 +234,121 @@ prediction_future = predire_top5(history, best.T, best.L, slot, best.weights)`}
               </div>
             </div>
           )}
+
+          {/* C.4 */}
+          {activeSubTab === 4 && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-heading font-semibold text-base text-slate-900 mb-1">
+                  C.4 — Processus de la Méthode 4 (Matrices Côte d'Ivoire · Loto Matrice Plus)
+                </h3>
+                <p className="text-slate-600">
+                  Cette méthode exploite les matrices quotidiennes réelles extraites de l'application mobile <strong>Loto Matrice Plus</strong> (champ <code>matricesci</code>). Chaque tirage officiel (Étoile 13H, Réveil 10H, Akwaba 16H, Afterwork 19H) est associé à une clé matricielle à 12 chiffres, un Clavier numérique, un Event et un Code.
+                </p>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">1. Décomposition de la Clé Matricielle (12 chiffres) :</div>
+                <div className="text-slate-600">
+                  La chaîne est découpée en 4 triplets de 3 chiffres : <code>T1 T2 T3 T4</code> (ex : <code>218 627 202 943</code>).
+                  Pour chaque triplet <code>d1 d2 d3</code> :
+                  <ul className="list-disc pl-5 mt-1 space-y-0.5 font-mono text-xs">
+                    <li>Paire directe gauche : <code>P1 = 10*d1 + d2</code> (ex: 21)</li>
+                    <li>Paire directe droite : <code>P2 = 10*d2 + d3</code> (ex: 18)</li>
+                    <li>Somme modulo 90 : <code>S = ((T - 1) mod 90) + 1</code> (ex: 218 mod 90 = 38)</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">2. Résonance Pivot Matrice-Clavier :</div>
+                <p className="text-slate-600">
+                  Les paires directes du <code>CLAVIER</code> sont également décomposées. Un numéro apparaissant à la fois dans la Matrice et dans le Clavier est classé <strong>« Pivot Matrice-Clavier »</strong> et reçoit la pondération maximale (score de base 60).
+                </p>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">3. Décodage des Composantes Event & Code :</div>
+                <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                  <li><strong>Event</strong> : valeur directe, son complément à 90 (<code>90 - val</code>), et son miroir inversion (ex : <code>26 ⇄ 62</code>).</li>
+                  <li><strong>Code</strong> : valeur directe, extraction des paires de 2 chiffres, et somme des chiffres (ex : <code>193 → 1+9+3 = 13</code>).</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">4. Pondération Fréquentielle Historique :</div>
+                <p className="text-slate-600">
+                  Chaque numéro candidat issu des matrices est modulé par sa fréquence historique réelle observée dans l'Historique Côte d'Ivoire pour la tranche horaire ciblée :
+                  <br />
+                  <code className="text-xs bg-white px-2 py-0.5 rounded border border-slate-200 mt-1 inline-block">
+                    Score_Total = Score_Matrice + 15 * (Freq / MaxFreq) + Bonus_Écart
+                  </code>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* C.5 */}
+          {activeSubTab === 5 && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-heading font-semibold text-base text-slate-900 mb-1">
+                  C.5 — Processus de la Méthode 5 (Pronostics Web GhanaWeb & Hybridation Fréquentielle)
+                </h3>
+                <p className="text-slate-600">
+                  Cette méthode intègre les pronostics spécialisés publiés sur{' '}
+                  <strong className="text-slate-900">GhanaWeb Solutions</strong> (URL source :{' '}
+                  <a
+                    href="https://www.ghanawebsolutions.com/serve.php?id=2073&d=Pronostic-Loto-Gratuit"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-700 underline font-mono text-xs"
+                  >
+                    ghanawebsolutions.com/serve.php?id=2073&d=Pronostic-Loto-Gratuit
+                  </a>
+                  ) et les croise avec la distribution fréquentielle historique propre à chaque heure de tirage de la Lonaci.
+                </p>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">1. Extraction des Clés Prédictives Web :</div>
+                <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                  <li><strong>Banker (P1)</strong> : Le numéro phare désigné avec la plus haute probabilité d'ancrage (Poids de base = 42 pts).</li>
+                  <li><strong>Two Sure (P1+P2)</strong> : La paire couplée principale recommandée pour le 2N (Poids partenaire = 34 pts).</li>
+                  <li><strong>Permutation Pool</strong> : Groupe de numéros de soutien recommandés pour le Perm (Poids = 20 à 26 pts).</li>
+                  <li><strong>Machine Numbers</strong> : Dérivation des tirages secondaires de contrôle.</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">2. Collaboration avec la Méthode des Fréquences par Heure de Jeu :</div>
+                <p className="text-slate-600">
+                  Chaque numéro extrait du pronostic est contextualisé par rapport à l'heure exacte du jeu (10h Akwaba, 13h Étoile, 16h Fortune, 18h15 Diamant) selon l'équation d'hybridation :
+                </p>
+                <div className="p-3 bg-white border border-slate-200 rounded font-mono text-xs text-[#0F3E2E] font-bold">
+                  Score_Final(n) = Poids_GhanaWeb(n) + [ 20 × ( Fréq_Heure(n) / Max_Fréq_Heure ) ] + Bonus_Écart(n)
+                </div>
+                <p className="text-xs text-slate-500">
+                  Le bonus d'écart privilégie les numéros situés dans la fenêtre optimale de répétition statistique (écart entre 6 et 35 tirages).
+                </p>
+              </div>
+
+              <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
+                <div className="font-semibold text-slate-900">3. Ordonnancement Calibré en 5 Positions :</div>
+                <ol className="list-decimal pl-5 space-y-1 text-slate-600">
+                  <li><strong>Position 1</strong> : Banker Web consolidé par la fréquence de sortie de l'heure.</li>
+                  <li><strong>Position 2</strong> : Numéro couplé Two-Sure le plus en affinité temporelle.</li>
+                  <li><strong>Positions 3, 4 et 5</strong> : Numéros de permutation classés par score de synergie décroissant.</li>
+                </ol>
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-xs">
+                <strong>Principe de fiabilité :</strong> La collaboration algorithmique évite les biais de subjectivité des pronostics isolés en confrontant chaque recommandation web à la réalité statistique des tirages officiels de Côte d'Ivoire.
+              </div>
+            </div>
+          )}
         </div>
+
 
         {/* Modal Footer */}
         <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">

@@ -14,7 +14,7 @@ import { PredictionSpace } from './components/PredictionSpace';
 import { StatisticsDashboard } from './components/StatisticsDashboard';
 import { HistoryTable } from './components/HistoryTable';
 import { AnomaliesView } from './components/AnomaliesView';
-import { MethodsAndLegalView } from './components/MethodsAndLegalView';
+import { MethodRankingView } from './components/MethodRankingView';
 import { Check, ShieldCheck } from 'lucide-react';
 
 export default function App() {
@@ -155,7 +155,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'methods' && <MethodsAndLegalView />}
+        {activeTab === 'ranking' && <MethodRankingView draws={draws} />}
       </main>
 
       {/* Institutional Legal Footer */}

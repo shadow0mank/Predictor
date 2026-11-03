@@ -6,6 +6,7 @@ import { LotteryBall } from './LotteryBall';
 import { computeNumberStatistics } from '../utils/probability';
 import { SLOTS_CONFIG } from '../data/seedDraws';
 import { runMethod1, runMethod2, runMethod3, calculateConsensus } from '../utils/algorithms';
+import { runMethod4 } from '../utils/matrixAlgorithm';
 import {
   Sparkles,
   TrendingUp,
@@ -15,6 +16,7 @@ import {
   Activity,
   Layers,
   Database,
+  Trophy,
 } from 'lucide-react';
 import { ActiveTab } from './Header';
 
@@ -49,7 +51,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
     const m1 = runMethod1(draws, currentSlot.slot, 365);
     const m2 = runMethod2(draws, currentSlot.slot, today, currentSlot.time, 'enriched');
     const m3 = runMethod3(draws, currentSlot.slot, today, 10);
-    return calculateConsensus(m1, m2, m3);
+    const m4 = runMethod4(draws, currentSlot.slot, today, currentSlot.time, currentSlot.name);
+    return calculateConsensus(m1, m2, m3, m4);
   }, [draws, currentSlot]);
 
   return (
@@ -79,13 +82,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
               onClick={() => onNavigateTab('predictions', currentSlot.slot)}
               className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] flex items-center gap-1 cursor-pointer"
             >
-              <span>Détails des 3 méthodes</span>
+              <span>Détails des 4 méthodes</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
           <p className="text-xs text-slate-500">
-            Convergence algorithmique entre Fréquences brutes, Facteur Chance décimal et Rétro-ingénierie adaptative.
+            Convergence algorithmique entre Fréquences brutes, Facteur Chance décimal, Rétro-ingénierie adaptative et Matrices Côte d'Ivoire.
           </p>
 
           {quickConsensus.consensusNumbers.length > 0 ? (
@@ -99,7 +102,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
                   <div className="text-left">
                     <span className="font-bold text-xs text-slate-900 block">N°{c.num}</span>
                     <span className="text-[10px] text-[#B45309] font-medium font-mono">
-                      {c.count}/3 méthodes
+                      {c.count}/4 méthodes
                     </span>
                   </div>
                 </div>
@@ -107,7 +110,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
             </div>
           ) : (
             <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600">
-              Aucun consensus absolu direct pour le tirage immédiat. Consultez les 3 méthodes séparément.
+              Aucun consensus absolu direct pour le tirage immédiat. Consultez les 4 méthodes séparément.
             </div>
           )}
 
@@ -182,8 +185,30 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
         </div>
       </div>
 
-      {/* Feature & Transparency Cards Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Ranking Callout Banner */}
+      <div className="bg-gradient-to-r from-[#0F3E2E] to-[#164E3A] text-white rounded-lg p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-[#FE932C]" />
+            <h4 className="font-heading font-bold text-base sm:text-lg">
+              Classement Officiel des 4 Méthodes
+            </h4>
+          </div>
+          <p className="text-xs text-emerald-100 max-w-2xl leading-relaxed">
+            Consultez le banc d'essai complet : quelle méthode fournit le plus de numéros gagnants exacts et quelle est la précision de chaque position (Positions 1 à 5) lors des tirages réels ?
+          </p>
+        </div>
+        <button
+          onClick={() => onNavigateTab('ranking')}
+          className="px-4 py-2 bg-[#FE932C] hover:bg-[#e68020] text-slate-950 font-heading font-bold text-xs rounded transition-colors cursor-pointer shrink-0 shadow-xs flex items-center gap-2"
+        >
+          <span>Voir le Classement & Précision</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Feature & Transparency Cards Strip (4 methods) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-xs space-y-2">
           <div className="w-7 h-7 rounded bg-emerald-50 text-[#0F3E2E] flex items-center justify-center font-bold">
             1
@@ -204,7 +229,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
             Méthode 2 · Facteur Chance Décimal
           </h4>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Formule spatio-temporelle formelle (H, S, Op1, Op3, divisions successives), extraction des paires de décimales et croisement avec le top-fréquence.
+            Formule spatio-temporelle formelle (H, S, Op1, Op3, divisions successives), extraction des paires de décimales et croisement top-fréquence.
           </p>
         </div>
 
@@ -217,6 +242,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
           </h4>
           <p className="text-xs text-slate-500 leading-relaxed">
             Boucle d'ajustement adaptatif avec rétro-validation masquée sur le tirage précédent (seuil de révision ≥ 2 numéros corrects atteint).
+          </p>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-xs space-y-2">
+          <div className="w-7 h-7 rounded bg-emerald-50 text-[#0F3E2E] flex items-center justify-center font-bold">
+            4
+          </div>
+          <h4 className="font-heading font-bold text-sm text-slate-900">
+            Méthode 4 · Matrices Côte d'Ivoire
+          </h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Matrice de jeu et Clavier de Loto Matrice Plus : décomposition en paires directes, sommes de triplets modulo 90, détection de résonance Event et Code.
           </p>
         </div>
       </div>

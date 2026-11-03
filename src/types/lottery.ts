@@ -40,6 +40,16 @@ export interface NumberStat {
   slotFrequencies: Record<DrawSlot, number>;
 }
 
+export interface MatrixItem {
+  drawName: string;
+  hour: string;
+  tirage?: string;
+  matriceKey: string; // e.g. "218 627 202 943"
+  clavier?: string; // e.g. "305 424 262 413"
+  event?: string; // e.g. "803" or "07"
+  code?: string; // e.g. "65" or "193"
+}
+
 export interface Method1Result {
   top5: { num: number; frequency: number; gap: number; score: number }[];
   gap5: { num: number; gap: number; frequency: number }[];
@@ -105,15 +115,61 @@ export interface Method3Result {
   trace: Method3RevisionTrace;
 }
 
+export interface Method4Result {
+  recommended5: {
+    num: number;
+    origin: string; // "Paire Clé Matrice", "Croisement Clavier", "Décodage Code", "Résonance Event", "Somme Triplet"
+    freqCount: number;
+    currentGap: number;
+  }[];
+  matrixData: MatrixItem | null;
+  rawPairs: number[];
+  clavierPairs: number[];
+  codeNumbers: number[];
+  eventNumbers: number[];
+  tripletSums: number[];
+}
+
+export interface Method5Result {
+  recommended5: {
+    num: number;
+    origin: 'Banker (P1)' | 'Two Sure (P2)' | 'Permutation Top' | 'Permutation Secondaire';
+    score: number;
+    slotFrequency: number;
+    globalFrequency: number;
+    currentGap: number;
+  }[];
+  sourceUrl: string;
+  slotHour: string;
+  slotName: string;
+  gameName: string;
+  banker: number;
+  twoSure: [number, number];
+  permutationPool: number[];
+  machineNumbers: number[];
+  forecastConfidence: number;
+  forecastNote: string;
+  fetchedAt: string;
+  synergyDetails: {
+    num: number;
+    ghanaWeight: number;
+    slotFreqBonus: number;
+    gapBonus: number;
+    totalScore: number;
+  }[];
+}
+
 export interface ConsensusSummary {
   consensusNumbers: {
     num: number;
-    methods: ('Méthode 1' | 'Méthode 2' | 'Méthode 3')[];
+    methods: string[];
     count: number;
   }[];
   method1Pick: number[];
   method2Pick: number[];
   method3Pick: number[];
+  method4Pick: number[];
+  method5Pick?: number[];
 }
 
 export interface PairFrequency {
@@ -121,3 +177,57 @@ export interface PairFrequency {
   count: number;
   relativeFreq: number;
 }
+
+export interface PositionStat {
+  totalPredicted: number;
+  hits: number; // how many times this position was a winning number
+  exactOrderHits: number; // how many times this position matched the exact draw position
+  hitRate: number; // %
+}
+
+export interface MethodMatchRecord {
+  drawDate: string;
+  drawTime: string;
+  drawName: string;
+  realNumbers: number[];
+  predictedNumbers: number[];
+  hitsCount: number;
+  matchedDetails: {
+    num: number;
+    predictedPos: number; // 1..5
+    realPos: number; // 1..5
+    isExactOrder: boolean;
+  }[];
+}
+
+export interface MethodRankingItem {
+  id: 'method1' | 'method2' | 'method3' | 'method4' | 'method5';
+  name: string;
+  shortName: string;
+  rank: number;
+  totalHits: number;
+  drawsEvaluated: number;
+  avgHitsPerDraw: number;
+  successRateAtLeast1: number; // %
+  successRateAtLeast2: number; // %
+  successRateAtLeast3: number; // %
+  positionStats: {
+    pos1: PositionStat;
+    pos2: PositionStat;
+    pos3: PositionStat;
+    pos4: PositionStat;
+    pos5: PositionStat;
+  };
+  recentMatches: MethodMatchRecord[];
+}
+
+export interface HourlySlotRanking {
+  hour: string; // "10:00", "13:00", "16:00", "18:15"
+  slotName: string; // "10H · Akwaba (Matin)", etc.
+  drawsEvaluated: number;
+  bestMethodId: 'method1' | 'method2' | 'method3' | 'method4' | 'method5';
+  bestMethodName: string;
+  bestMethodHitRate: number;
+  rankings: MethodRankingItem[];
+}
+

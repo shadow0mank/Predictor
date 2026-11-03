@@ -479,32 +479,42 @@ function calculateScoresForHistory(
 }
 
 // -------------------------------------------------------------
-// Consensus Calculation
+// Consensus Calculation (5 Methods)
 // -------------------------------------------------------------
 export function calculateConsensus(
   m1: Method1Result,
   m2: Method2Result,
-  m3: Method3Result
+  m3: Method3Result,
+  m4?: { recommended5: { num: number }[] },
+  m5?: { recommended5: { num: number }[] }
 ): ConsensusSummary {
   const method1Pick = m1.top5.map((x) => x.num);
   const method2Pick = m2.recommended5.map((x) => x.num);
   const method3Pick = m3.recommended5.map((x) => x.num);
+  const method4Pick = m4 ? m4.recommended5.map((x) => x.num) : [];
+  const method5Pick = m5 ? m5.recommended5.map((x) => x.num) : [];
 
-  const appearances = new Map<number, ('Méthode 1' | 'Méthode 2' | 'Méthode 3')[]>();
+  const appearances = new Map<number, string[]>();
 
   method1Pick.forEach((n) => {
-    appearances.set(n, [...(appearances.get(n) || []), 'Méthode 1']);
+    appearances.set(n, [...(appearances.get(n) || []), 'M1 (Fréquences)']);
   });
   method2Pick.forEach((n) => {
-    appearances.set(n, [...(appearances.get(n) || []), 'Méthode 2']);
+    appearances.set(n, [...(appearances.get(n) || []), 'M2 (Facteur Chance)']);
   });
   method3Pick.forEach((n) => {
-    appearances.set(n, [...(appearances.get(n) || []), 'Méthode 3']);
+    appearances.set(n, [...(appearances.get(n) || []), 'M3 (Rétro-Ingénierie)']);
+  });
+  method4Pick.forEach((n) => {
+    appearances.set(n, [...(appearances.get(n) || []), 'M4 (Matrices CI)']);
+  });
+  method5Pick.forEach((n) => {
+    appearances.set(n, [...(appearances.get(n) || []), 'M5 (GhanaWeb & Fréquences)']);
   });
 
   const consensusNumbers: {
     num: number;
-    methods: ('Méthode 1' | 'Méthode 2' | 'Méthode 3')[];
+    methods: string[];
     count: number;
   }[] = [];
 
@@ -526,5 +536,8 @@ export function calculateConsensus(
     method1Pick,
     method2Pick,
     method3Pick,
+    method4Pick,
+    method5Pick,
   };
 }
+

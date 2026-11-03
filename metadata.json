@@ -1,6 +1,6 @@
 {
   "name": "Loto Bonheur CI - Observatoire Statistique & Aide à la Décision",
-  "description": "Plateforme d'analyse rétrospective, modélisation probabiliste et aide à la décision pour le Loto Bonheur Côte d'Ivoire (Lonaci). Analyse rigoureuse des 90 numéros, 3 méthodes de recommandation et historique complet.",
+  "description": "Plateforme d'analyse rétrospective, modélisation probabiliste et classement d'exactitude des méthodes pour le Loto Bonheur Côte d'Ivoire. Analyse rigoureuse des 90 numéros, 4 méthodes (Fréquences, Chance, Rétro-ingénierie et Matrices Côte d'Ivoire) et classement objectif des prédictions par position.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
