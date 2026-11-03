@@ -70,12 +70,11 @@ export function saveStoredDraws(draws: Draw[]): void {
   }
 }
 
-/**
- * Loads the complete 14,433 draws from Loto Matrice Plus (2020-2026)
- */
 export async function loadFullLottoMatricePlusHistory(): Promise<Draw[]> {
   try {
-    const res = await fetch('/data/lottoMatricePlus_ci_draws.json');
+    const baseUrl = import.meta.env.BASE_URL || './';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    const res = await fetch(`${cleanBase}data/lottoMatricePlus_ci_draws.json`);
     if (res.ok) {
       const allDraws: Draw[] = await res.json();
       if (Array.isArray(allDraws) && allDraws.length > 0) {
@@ -83,7 +82,7 @@ export async function loadFullLottoMatricePlusHistory(): Promise<Draw[]> {
       }
     }
   } catch (err) {
-    console.error('Erreur de chargement du fichier complet des tirages:', err);
+    console.warn('Erreur de chargement du fichier complet des tirages, utilisation du socle initial:', err);
   }
   return getStoredDraws();
 }
