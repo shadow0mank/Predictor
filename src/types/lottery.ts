@@ -133,7 +133,8 @@ export interface Method4Result {
 export interface Method5Result {
   recommended5: {
     num: number;
-    origin: 'Banker (P1)' | 'Two Sure (P2)' | 'Permutation Top' | 'Permutation Secondaire';
+    origin: string;
+    category: 'Prédiction' | 'Machine' | 'Mixte';
     score: number;
     slotFrequency: number;
     globalFrequency: number;
@@ -152,10 +153,17 @@ export interface Method5Result {
   fetchedAt: string;
   synergyDetails: {
     num: number;
-    ghanaWeight: number;
+    origin: string;
+    category: 'Prédiction' | 'Machine' | 'Mixte';
+    baseWeight: number;
+    ghanaWeight?: number;
     slotFreqBonus: number;
     gapBonus: number;
+    globalBonus: number;
     totalScore: number;
+    slotFrequency: number;
+    globalFrequency: number;
+    currentGap: number;
   }[];
 }
 

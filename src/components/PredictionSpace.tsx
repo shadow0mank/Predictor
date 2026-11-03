@@ -874,8 +874,8 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     </h3>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Récupère les prédictions spécialisées (Banker, Two Sure, Permutation) publiées sur{' '}
-                    <strong>GhanaWeb Solutions</strong> et les calibre en collaboration avec l'historique des fréquences de sortie pour chaque heure de jeu ({currentSlotDef.time}).
+                    Intègre <strong>au même degré</strong> les prédictions (Banker, Two Sure, Permutation) et les numéros Machines de{' '}
+                    <strong>GhanaWeb Solutions</strong> comme candidats potentiellement gagnants, puis applique l'opération de filtrage par fréquences de sortie pour l'heure de jeu ({currentSlotDef.time}).
                   </p>
                 </div>
 
@@ -901,7 +901,7 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                 </div>
               </div>
 
-              {/* Source Verification Card */}
+              {/* Source Verification Card - Equal Treatment of Predictions & Machines */}
               <div className="bg-gradient-to-r from-emerald-50/60 via-amber-50/30 to-emerald-50/60 border border-emerald-200/90 rounded-lg p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/50 pb-2 text-xs">
                   <div className="flex items-center gap-2 font-mono">
@@ -909,57 +909,82 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     <span className="font-bold text-slate-800">Source : GhanaWeb Solutions · Pronostic Loto Gratuit</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-600 font-mono text-[11px]">
-                    <span>Créneau : <strong className="text-[#0F3E2E]">{method5.slotName}</strong></span>
+                    <span className="bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded">
+                      Égalité stricte : Prédictions & Machines = Poids initial 25 pts
+                    </span>
                     <span>·</span>
-                    <span>Indice de confiance : <strong className="text-amber-700">{method5.forecastConfidence}%</strong></span>
+                    <span>Créneau : <strong className="text-[#0F3E2E]">{method5.slotName}</strong></span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-white rounded border border-emerald-100 space-y-1.5">
+                  {/* Predictions Pool */}
+                  <div className="p-3 bg-white rounded border border-emerald-100 space-y-2">
                     <div className="font-heading font-semibold text-slate-900 flex items-center justify-between">
-                      <span>Piliers GhanaWeb extraits :</span>
-                      <span className="text-[10px] text-slate-400 font-mono">Tirage 5/90</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                        <span>Pool Prédictions (Banker, 2Sure, Permutation)</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-mono font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                        Éligibilité 100%
+                      </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs font-mono">
-                      <div>
-                        <span className="text-slate-500 block text-[10px] font-sans">Banker Phare (P1)</span>
-                        <span className="font-extrabold text-base text-[#0F3E2E]">{method5.banker}</span>
-                      </div>
-                      <div className="h-7 w-px bg-slate-200"></div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px] font-sans">Two Sure Couplé (P1+P2)</span>
-                        <span className="font-extrabold text-base text-amber-600">
+
+                    <div className="space-y-1.5 text-xs font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-[11px] font-sans w-24">Banker & 2Sure :</span>
+                        <span className="font-bold text-[#0F3E2E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          {method5.banker} (Banker)
+                        </span>
+                        <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                           {method5.twoSure.join(' - ')}
                         </span>
                       </div>
-                    </div>
-                    <p className="text-[11px] text-slate-600 italic">
-                      "{method5.forecastNote}"
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-white rounded border border-emerald-100 space-y-1.5 font-mono">
-                    <div className="font-heading font-semibold text-slate-900 font-sans flex items-center justify-between">
-                      <span>Pool de Permutation & Machine :</span>
-                      <span className="text-[10px] text-slate-400">GhanaWeb Candidates</span>
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-slate-500 font-sans block text-[10px]">Permutation recommandée :</span>
-                      <div className="flex flex-wrap gap-1.5 mt-0.5">
-                        {method5.permutationPool.map((p) => (
-                          <span
-                            key={p}
-                            className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-200 text-xs"
-                          >
-                            {p}
-                          </span>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-[11px] font-sans w-24">Permutation :</span>
+                        <div className="flex flex-wrap gap-1">
+                          {method5.permutationPool.map((p) => (
+                            <span
+                              key={p}
+                              className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-200 text-xs"
+                            >
+                              {p}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-[11px] pt-1">
-                      <span className="text-slate-500 font-sans">Tirage Machine prévu : </span>
-                      <span className="text-slate-700 font-bold">{method5.machineNumbers.join(', ')}</span>
+                  </div>
+
+                  {/* Machine Pool (Treated equally) */}
+                  <div className="p-3 bg-white rounded border border-emerald-100 space-y-2">
+                    <div className="font-heading font-semibold text-slate-900 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>Pool Machine GhanaWeb (Même degré de priorité)</span>
+                      </span>
+                      <span className="text-[10px] text-blue-700 font-mono font-bold bg-blue-50 px-1.5 py-0.5 rounded">
+                        Éligibilité 100%
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-[11px] font-sans w-24">Tirage Machine :</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {method5.machineNumbers.map((m) => (
+                            <span
+                              key={m}
+                              className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 font-bold border border-blue-200 text-xs"
+                            >
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 italic font-sans pt-1">
+                        Les numéros machines sont injectés à égalité avec les prédictions et départagés par les fréquences de sortie de l'heure {currentSlotDef.time}.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -973,19 +998,26 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     <span>Les 5 Numéros Gagnants Calibrés par l'Heure de Jeu ({currentSlotDef.time})</span>
                   </h4>
                   <span className="text-xs text-slate-500 font-mono">
-                    Classés par Position P1 à P5
+                    Positions 1 à 5 départagées par l'opération fréquentielle
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                   {method5.recommended5.map((item, idx) => {
                     const posLabels = [
-                      'Position 1 · Banker Ancrage',
-                      'Position 2 · Two Sure Partenaire',
-                      'Position 3 · Permutation Pivot',
-                      'Position 4 · Permutation Secondaire',
-                      'Position 5 · Permutation Soutien',
+                      'Position 1 · 1er Favori Heure',
+                      'Position 2 · 2e Favori Heure',
+                      'Position 3 · 3e Favori Heure',
+                      'Position 4 · 4e Favori Heure',
+                      'Position 5 · 5e Favori Heure',
                     ];
+
+                    const categoryBadgeClass =
+                      item.category === 'Machine'
+                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                        : item.category === 'Mixte'
+                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200';
 
                     return (
                       <div
@@ -1000,12 +1032,24 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                           <LotteryBall number={item.num} variant="emerald" size="lg" />
                         </div>
 
-
                         <div className="space-y-1 w-full text-xs font-mono pt-1 border-t border-slate-100">
-                          <div className="text-[11px] font-sans font-semibold text-slate-800 truncate">
+                          <div className="flex items-center justify-center">
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${categoryBadgeClass}`}
+                            >
+                              {item.category === 'Mixte'
+                                ? 'Prédiction & Machine'
+                                : item.category === 'Machine'
+                                ? 'Machine Web'
+                                : 'Prédiction Web'}
+                            </span>
+                          </div>
+
+                          <div className="text-[10px] text-slate-600 truncate font-sans font-medium" title={item.origin}>
                             {item.origin}
                           </div>
-                          <div className="flex justify-between text-[10px] text-slate-500">
+
+                          <div className="flex justify-between text-[10px] text-slate-500 pt-0.5">
                             <span>Fréq à {currentSlotDef.time} :</span>
                             <strong className="text-emerald-700">{item.slotFrequency}x</strong>
                           </div>
@@ -1014,8 +1058,8 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                             <strong className="text-slate-800">{item.currentGap}</strong>
                           </div>
                           <div className="flex justify-between text-[10px] text-slate-500 pt-0.5 border-t border-slate-100">
-                            <span>Score synergie :</span>
-                            <strong className="text-[#0F3E2E]">{item.score} pts</strong>
+                            <span>Score calibré :</span>
+                            <strong className="text-[#0F3E2E] font-bold">{item.score} pts</strong>
                           </div>
                         </div>
                       </div>
@@ -1029,10 +1073,10 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
                   <span className="flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-[#0F3E2E]" />
-                    <span>Détail de la Collaboration Web & Fréquences de Sortie</span>
+                    <span>Détail de l'Opération de Synergie (Prédictions & Machines traitées au même degré)</span>
                   </span>
                   <span className="text-[11px] text-slate-400 font-mono">
-                    Formule : Score = Poids Web + Bonus Fréquence Horaire + Bonus Écart
+                    Formule : Score = Base Égalitaire (25) + Bonus Fréquence ({currentSlotDef.time}) + Bonus Écart + Bonus Global
                   </span>
                 </div>
 
@@ -1041,8 +1085,9 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     <thead className="bg-slate-50 text-slate-700 font-heading font-bold border-b border-slate-200">
                       <tr>
                         <th className="py-2.5 px-3">Numéro</th>
+                        <th className="py-2.5 px-3">Catégorie</th>
                         <th className="py-2.5 px-3">Origine GhanaWeb</th>
-                        <th className="py-2.5 px-3 text-center">Poids Web</th>
+                        <th className="py-2.5 px-3 text-center">Poids Initial</th>
                         <th className="py-2.5 px-3 text-center">Fréq à {currentSlotDef.time}</th>
                         <th className="py-2.5 px-3 text-center">Bonus Fréq</th>
                         <th className="py-2.5 px-3 text-center">Écart</th>
@@ -1052,7 +1097,7 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono">
-                      {method5.synergyDetails.map((s, idx) => {
+                      {method5.synergyDetails.map((s) => {
                         const isSelected = method5.recommended5.some((r) => r.num === s.num);
                         const posIdx = method5.recommended5.findIndex((r) => r.num === s.num);
 
@@ -1071,22 +1116,31 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                               </span>
                             </td>
 
-                            <td className="py-2.5 px-3 font-sans font-medium text-slate-800">
-                              {s.num === method5.banker
-                                ? 'Banker Phare (P1)'
-                                : method5.twoSure.includes(s.num)
-                                ? 'Two Sure (P2)'
-                                : 'Permutation Pool'}
+                            <td className="py-2.5 px-3 font-sans">
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                  s.category === 'Machine'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    : s.category === 'Mixte'
+                                    ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                }`}
+                              >
+                                {s.category}
+                              </span>
+                            </td>
+
+                            <td className="py-2.5 px-3 font-sans font-medium text-slate-800 text-[11px]">
+                              {s.origin}
                             </td>
 
                             <td className="py-2.5 px-3 text-center font-bold text-slate-800">
-                              +{s.ghanaWeight}
+                              +{s.baseWeight}
                             </td>
 
                             <td className="py-2.5 px-3 text-center">
-                              {/* slot freq */}
                               <span className="font-semibold text-emerald-800">
-                                {method5.recommended5.find((r) => r.num === s.num)?.slotFrequency ?? '—'}
+                                {s.slotFrequency}x
                               </span>
                             </td>
 
@@ -1095,7 +1149,7 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                             </td>
 
                             <td className="py-2.5 px-3 text-center text-slate-700">
-                              {method5.recommended5.find((r) => r.num === s.num)?.currentGap ?? '—'}
+                              {s.currentGap}
                             </td>
 
                             <td className="py-2.5 px-3 text-center text-amber-700">
@@ -1127,10 +1181,10 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
               <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded text-emerald-950 text-xs leading-relaxed space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>Principe de Synergie de la Méthode 5 :</span>
+                  <span>Principe de Synergie Égalitaire de la Méthode 5 :</span>
                 </div>
                 <p>
-                  Les numéros pronostiqués sur <strong>ghanawebsolutions.com/serve.php?id=2073&d=Pronostic-Loto-Gratuit</strong> (Banker, Two Sure, Permutation) sont confrontés aux statistiques d'apparition historiques de la Lonaci Côte d'Ivoire spécifiques à l'heure sélectionnée ({currentSlotDef.time}). Les numéros avec la plus forte corrélation temporelle sont ordonnés en priorité (Pos 1 à Pos 5) pour maximiser les chances d'accrochage d'un gain exact.
+                  Conformément au protocole, les numéros issus des <strong>prédictions</strong> (Banker, Two Sure, Permutation) et ceux issus des <strong>machines</strong> publiés sur <strong>ghanawebsolutions.com/serve.php?id=2073&d=Pronostic-Loto-Gratuit</strong> sont tous pris au <strong>même degré de probabilité initiale</strong> (poids égal de base = 25 pts). L'opération statistique croise ensuite ces candidats avec l'historique officiel des fréquences de sortie de la Lonaci propres à l'heure du jeu ({currentSlotDef.time}) et la dynamique d'écart pour placer dans l'ordre exact les 5 numéros les plus susceptibles d'être gagnants (Position 1 à Position 5).
                 </p>
               </div>
             </div>

@@ -311,39 +311,46 @@ prediction_future = predire_top5(history, best.T, best.L, slot, best.weights)`}
               </div>
 
               <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
-                <div className="font-semibold text-slate-900">1. Extraction des Clés Prédictives Web :</div>
+                <div className="font-semibold text-slate-900">1. Règle d'Égalité Stricte (Prédictions & Machines) :</div>
+                <p className="text-slate-600">
+                  Contrairement aux approches dogmatiques, l'algorithme prend <strong>au même degré</strong> les numéros des prédictions (Banker, Two Sure, Permutation) et ceux issus des tirages <strong>Machines</strong> comme autant de candidats légitimes et potentiellement gagnants :
+                </p>
                 <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                  <li><strong>Banker (P1)</strong> : Le numéro phare désigné avec la plus haute probabilité d'ancrage (Poids de base = 42 pts).</li>
-                  <li><strong>Two Sure (P1+P2)</strong> : La paire couplée principale recommandée pour le 2N (Poids partenaire = 34 pts).</li>
-                  <li><strong>Permutation Pool</strong> : Groupe de numéros de soutien recommandés pour le Perm (Poids = 20 à 26 pts).</li>
-                  <li><strong>Machine Numbers</strong> : Dérivation des tirages secondaires de contrôle.</li>
+                  <li><strong>Prédictions (Banker, Two Sure, Permutation)</strong> : Injectées avec un poids de base égalitaire de <strong>25 points</strong>.</li>
+                  <li><strong>Tirage Machine</strong> : Injecté avec le <strong>même poids de base égalitaire de 25 points</strong>.</li>
+                  <li><strong>Présence conjointe (Mixte)</strong> : Si un numéro figure à la fois dans les prédictions et les machines, son éligibilité est renforcée par son double ancrage.</li>
                 </ul>
               </div>
 
               <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
-                <div className="font-semibold text-slate-900">2. Collaboration avec la Méthode des Fréquences par Heure de Jeu :</div>
+                <div className="font-semibold text-slate-900">2. L'Opération de Filtrage par Heure de Tirage :</div>
                 <p className="text-slate-600">
-                  Chaque numéro extrait du pronostic est contextualisé par rapport à l'heure exacte du jeu (10h Akwaba, 13h Étoile, 16h Fortune, 18h15 Diamant) selon l'équation d'hybridation :
+                  Pour départager objectivement l'ensemble des candidats réunis, l'algorithme applique l'opération fréquentielle relative à l'heure du tirage sélectionné (10h Akwaba, 13h Étoile, 16h Fortune, 18h15 Diamant) :
                 </p>
                 <div className="p-3 bg-white border border-slate-200 rounded font-mono text-xs text-[#0F3E2E] font-bold">
-                  Score_Final(n) = Poids_GhanaWeb(n) + [ 20 × ( Fréq_Heure(n) / Max_Fréq_Heure ) ] + Bonus_Écart(n)
+                  Score_Final(n) = Base_Égalitaire (25) + [ 35 × ( Fréq_Heure(n) / Max_Fréq_Heure ) ] + Bonus_Écart(n) + Bonus_Global(n)
                 </div>
                 <p className="text-xs text-slate-500">
-                  Le bonus d'écart privilégie les numéros situés dans la fenêtre optimale de répétition statistique (écart entre 6 et 35 tirages).
+                  • <strong>Bonus Fréquence Heure (jusqu'à +35 pts)</strong> : Récompense la cadence historique réelle du numéro à cette heure précise.<br />
+                  • <strong>Bonus d'Écart Harmonique (jusqu'à +15 pts)</strong> : Favorise les numéros situés dans la fenêtre optimale de répétition (entre 5 et 35 tirages).<br />
+                  • <strong>Bonus Global (jusqu'à +10 pts)</strong> : Mesure l'impulsion globale du numéro sur l'ensemble de la base Lonaci.
                 </p>
               </div>
 
               <div className="space-y-2 p-3.5 bg-slate-50 border border-slate-200 rounded">
-                <div className="font-semibold text-slate-900">3. Ordonnancement Calibré en 5 Positions :</div>
+                <div className="font-semibold text-slate-900">3. Ordonnancement Calibré en Positions 1 à 5 :</div>
                 <ol className="list-decimal pl-5 space-y-1 text-slate-600">
-                  <li><strong>Position 1</strong> : Banker Web consolidé par la fréquence de sortie de l'heure.</li>
-                  <li><strong>Position 2</strong> : Numéro couplé Two-Sure le plus en affinité temporelle.</li>
-                  <li><strong>Positions 3, 4 et 5</strong> : Numéros de permutation classés par score de synergie décroissant.</li>
+                  <li><strong>Position 1</strong> : Candidat (Prédiction ou Machine) obtenant le plus haut score combiné pour cette heure de jeu.</li>
+                  <li><strong>Position 2</strong> : 2e candidat le plus en phase avec le créneau horaire.</li>
+                  <li><strong>Positions 3, 4 et 5</strong> : 3e, 4e et 5e candidats ordonnés par score décroissant de synergie temporelle.</li>
                 </ol>
+                <p className="text-xs text-slate-500 italic">
+                  Un numéro issu de la Machine peut ainsi se hisser en Position 1 ou 2 s'il démontre une affinité statistique supérieure à celle du Banker sur cette tranche horaire précise.
+                </p>
               </div>
 
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-xs">
-                <strong>Principe de fiabilité :</strong> La collaboration algorithmique évite les biais de subjectivité des pronostics isolés en confrontant chaque recommandation web à la réalité statistique des tirages officiels de Côte d'Ivoire.
+                <strong>Garantie de rigueur :</strong> Tous les numéros partent d'un statut égalitaire. C'est l'opération mathématique fondée sur les données historiques réelles de Côte d'Ivoire qui décide du classement des 5 numéros gagnants.
               </div>
             </div>
           )}

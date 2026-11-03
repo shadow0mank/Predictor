@@ -48,51 +48,87 @@ export function runMethod5(
   const slotStatsMap = new Map(slotStats.map((s) => [s.num, s]));
   const maxSlotCount = Math.max(...slotStats.map((s) => s.count), 1);
 
-  // Global stats for fallback
+  // Global stats for fallback & momentum
   const globalStats = computeNumberStatistics(allDraws);
   const globalStatsMap = new Map(globalStats.map((s) => [s.num, s]));
+  const maxGlobalCount = Math.max(...globalStats.map((s) => s.count), 1);
 
-  // Build pool of candidates from GhanaWeb Solutions
+  // Equal baseline weight for all candidate numbers (predictions and machines taken au même degré)
+  const EQUAL_BASE_WEIGHT = 25.0;
+
+  // Build pool of candidates from GhanaWeb Solutions (Both Predictions AND Machines on equal footing)
   const candidatePool = new Map<
     number,
     {
-      origin: 'Banker (P1)' | 'Two Sure (P2)' | 'Permutation Top' | 'Permutation Secondaire';
-      ghanaWeight: number;
+      origin: string;
+      category: 'Prédiction' | 'Machine' | 'Mixte';
+      isBanker: boolean;
+      isTwoSure: boolean;
+      isPermutation: boolean;
+      isMachine: boolean;
     }
   >();
 
-  // 1. Banker (Highest priority anchor)
-  candidatePool.set(forecast.banker, {
-    origin: 'Banker (P1)',
-    ghanaWeight: 42,
-  });
+  // 1. Gather all numbers from Predictions (Banker, Two Sure, Permutation)
+  const predictionNumbers = new Set<number>();
+  predictionNumbers.add(forecast.banker);
+  forecast.twoSure.forEach((n) => predictionNumbers.add(n));
+  forecast.permutation.forEach((n) => predictionNumbers.add(n));
 
-  // 2. Two Sure Partner
-  const twoSurePartner = forecast.twoSure.find((n) => n !== forecast.banker) || forecast.twoSure[1];
-  if (twoSurePartner && !candidatePool.has(twoSurePartner)) {
-    candidatePool.set(twoSurePartner, {
-      origin: 'Two Sure (P2)',
-      ghanaWeight: 34,
-    });
-  }
+  // 2. Gather all numbers from Machines
+  const machineNumbers = new Set<number>(forecast.machine);
 
-  // 3. Permutation pool
-  forecast.permutation.forEach((n, idx) => {
-    if (!candidatePool.has(n)) {
-      candidatePool.set(n, {
-        origin: idx < 3 ? 'Permutation Top' : 'Permutation Secondaire',
-        ghanaWeight: idx < 3 ? 26 : 20,
-      });
+  // 3. Union of all candidate numbers with equal consideration
+  const allCandidateNums = new Set<number>([...predictionNumbers, ...machineNumbers]);
+
+  allCandidateNums.forEach((num) => {
+    const inPred = predictionNumbers.has(num);
+    const inMach = machineNumbers.has(num);
+    const isBanker = num === forecast.banker;
+    const isTwoSure = forecast.twoSure.includes(num);
+
+    let origin = '';
+    let category: 'Prédiction' | 'Machine' | 'Mixte' = 'Prédiction';
+
+    if (inPred && inMach) {
+      category = 'Mixte';
+      origin = isBanker
+        ? 'Banker & Machine (GhanaWeb)'
+        : isTwoSure
+        ? 'Two Sure & Machine (GhanaWeb)'
+        : 'Permutation & Machine (GhanaWeb)';
+    } else if (inMach) {
+      category = 'Machine';
+      origin = 'Machine (GhanaWeb)';
+    } else {
+      category = 'Prédiction';
+      origin = isBanker
+        ? 'Prédiction · Banker Phare'
+        : isTwoSure
+        ? 'Prédiction · Two Sure Couplé'
+        : 'Prédiction · Permutation';
     }
+
+    candidatePool.set(num, {
+      origin,
+      category,
+      isBanker,
+      isTwoSure,
+      isPermutation: inPred && !isBanker && !isTwoSure,
+      isMachine: inMach,
+    });
   });
 
-  // 4. Compute synergy scores with slot frequencies
+  // 4. Compute synergy scores with draw-hour frequencies (L'opération de filtrage horaire)
   const synergyDetails: {
     num: number;
-    origin: 'Banker (P1)' | 'Two Sure (P2)' | 'Permutation Top' | 'Permutation Secondaire';
+    origin: string;
+    category: 'Prédiction' | 'Machine' | 'Mixte';
+    baseWeight: number;
     ghanaWeight: number;
     slotFreqBonus: number;
     gapBonus: number;
+    globalBonus: number;
     totalScore: number;
     slotFrequency: number;
     globalFrequency: number;
@@ -107,27 +143,38 @@ export function runMethod5(
     const globalFreq = gStat?.count || 0;
     const currentGap = sStat?.currentGap ?? gStat?.currentGap ?? 0;
 
-    // Slot frequency bonus (up to 20 pts)
-    const slotFreqBonus = Number(((slotFreq / maxSlotCount) * 20).toFixed(2));
+    // Slot frequency bonus for the specific draw hour (up to 35 pts)
+    const slotFreqBonus = Number(((slotFreq / maxSlotCount) * 35).toFixed(2));
 
-    // Gap bonus: numbers within normal return cycle (5 to 35 draws) get bonus
+    // Gap / Harmonic return cycle bonus (up to 15 pts)
     let gapBonus = 0;
-    if (currentGap >= 6 && currentGap <= 35) {
-      gapBonus = 8;
-    } else if (currentGap > 35) {
-      gapBonus = 4;
+    if (currentGap >= 5 && currentGap <= 35) {
+      gapBonus = 15; // Optimal active harmonic return window
+    } else if (currentGap > 35 && currentGap <= 60) {
+      gapBonus = 10; // Medium overdue
+    } else if (currentGap > 60) {
+      gapBonus = 6;  // Long overdue
     } else {
-      gapBonus = 2; // recently drawn
+      gapBonus = 8;  // Immediate recurrence potential (< 5 draws)
     }
 
-    const totalScore = Number((item.ghanaWeight + slotFreqBonus + gapBonus).toFixed(2));
+    // Global cadence bonus (up to 10 pts)
+    const globalBonus = Number(((globalFreq / maxGlobalCount) * 10).toFixed(2));
+
+    // Combined score: All candidates start with the equal baseline weight (25 pts)
+    const totalScore = Number(
+      (EQUAL_BASE_WEIGHT + slotFreqBonus + gapBonus + globalBonus).toFixed(2)
+    );
 
     synergyDetails.push({
       num,
       origin: item.origin,
-      ghanaWeight: item.ghanaWeight,
+      category: item.category,
+      baseWeight: EQUAL_BASE_WEIGHT,
+      ghanaWeight: EQUAL_BASE_WEIGHT,
       slotFreqBonus,
       gapBonus,
+      globalBonus,
       totalScore,
       slotFrequency: slotFreq,
       globalFrequency: globalFreq,
@@ -135,55 +182,25 @@ export function runMethod5(
     });
   });
 
-  // Sort candidates by total score descending
+  // Sort candidates strictly by total calibrated score in descending order
   synergyDetails.sort((a, b) => b.totalScore - a.totalScore);
 
-  // Position calibration:
-  // Position 1: The Banker (or highest synergistic candidate)
-  // Position 2: The Two Sure partner
-  // Positions 3..5: The best permutation numbers
+  // Take top 5 candidates across all predictions and machines
   const finalTop5: {
     num: number;
-    origin: 'Banker (P1)' | 'Two Sure (P2)' | 'Permutation Top' | 'Permutation Secondaire';
+    origin: string;
+    category: 'Prédiction' | 'Machine' | 'Mixte';
     score: number;
     slotFrequency: number;
     globalFrequency: number;
     currentGap: number;
   }[] = [];
 
-  const bankerItem = synergyDetails.find((s) => s.origin === 'Banker (P1)') || synergyDetails[0];
-  if (bankerItem) {
-    finalTop5.push({
-      num: bankerItem.num,
-      origin: bankerItem.origin,
-      score: bankerItem.totalScore,
-      slotFrequency: bankerItem.slotFrequency,
-      globalFrequency: bankerItem.globalFrequency,
-      currentGap: bankerItem.currentGap,
-    });
-  }
-
-  const twoSureItem = synergyDetails.find(
-    (s) => s.origin === 'Two Sure (P2)' && s.num !== bankerItem?.num
-  ) || synergyDetails.find((s) => s.num !== bankerItem?.num);
-
-  if (twoSureItem) {
-    finalTop5.push({
-      num: twoSureItem.num,
-      origin: twoSureItem.origin,
-      score: twoSureItem.totalScore,
-      slotFrequency: twoSureItem.slotFrequency,
-      globalFrequency: twoSureItem.globalFrequency,
-      currentGap: twoSureItem.currentGap,
-    });
-  }
-
-  // Add remaining 3 numbers from highest synergy scores
   for (const item of synergyDetails) {
-    if (finalTop5.some((f) => f.num === item.num)) continue;
     finalTop5.push({
       num: item.num,
       origin: item.origin,
+      category: item.category,
       score: item.totalScore,
       slotFrequency: item.slotFrequency,
       globalFrequency: item.globalFrequency,
@@ -192,15 +209,16 @@ export function runMethod5(
     if (finalTop5.length === 5) break;
   }
 
-  // Fallback if less than 5
+  // Fallback if less than 5 candidates
   if (finalTop5.length < 5) {
     const topBySlot = [...slotStats].sort((a, b) => b.count - a.count);
     for (const s of topBySlot) {
       if (!finalTop5.some((f) => f.num === s.num)) {
         finalTop5.push({
           num: s.num,
-          origin: 'Permutation Secondaire',
-          score: 15,
+          origin: 'Fréquence Heure (Complément)',
+          category: 'Prédiction',
+          score: 20,
           slotFrequency: s.count,
           globalFrequency: globalStatsMap.get(s.num)?.count || s.count,
           currentGap: s.currentGap,
@@ -225,10 +243,17 @@ export function runMethod5(
     fetchedAt: new Date().toISOString(),
     synergyDetails: synergyDetails.map((s) => ({
       num: s.num,
+      origin: s.origin,
+      category: s.category,
+      baseWeight: s.baseWeight,
       ghanaWeight: s.ghanaWeight,
       slotFreqBonus: s.slotFreqBonus,
       gapBonus: s.gapBonus,
+      globalBonus: s.globalBonus,
       totalScore: s.totalScore,
+      slotFrequency: s.slotFrequency,
+      globalFrequency: s.globalFrequency,
+      currentGap: s.currentGap,
     })),
   };
 }
