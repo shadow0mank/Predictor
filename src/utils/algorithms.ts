@@ -64,48 +64,114 @@ export function getMatrixPosition(n: number): { row: number; col: number } {
 }
 
 // -------------------------------------------------------------
-// METHOD 1: Output Frequencies & Gaps
+// METHOD 1: Output Frequencies & Gaps (Hierarchical Case-by-Case + Hourly Generalization)
 // -------------------------------------------------------------
 export function runMethod1(
   allDraws: Draw[],
   targetSlot: DrawSlot,
-  frequencyWindowDays: number = 365
+  frequencyWindowDays: number = 365,
+  targetGameName?: string,
+  targetDrawIndex?: number
 ): Method1Result {
-  // Filter by slot
+  // 1. Hourly Slot Draws in strict descending chronological order
   const slotDraws = allDraws.filter((d) => d.slot === targetSlot);
-  const activeDraws = slotDraws.length > 20 ? slotDraws : allDraws;
+  const activeHourlyDraws = slotDraws.length > 10 ? slotDraws : allDraws;
+  const hourlyStats = computeNumberStatistics(activeHourlyDraws);
+  const maxHourlyCount = Math.max(...hourlyStats.map((s) => s.count), 1);
+  const maxHourlyGap = Math.max(...hourlyStats.map((s) => s.currentGap), 1);
+  const hourlyStatsMap = new Map(hourlyStats.map((s) => [s.num, s]));
 
-  const stats = computeNumberStatistics(activeDraws);
-  const maxGap = Math.max(...stats.map((s) => s.currentGap), 1);
-  const maxCount = Math.max(...stats.map((s) => s.count), 1);
+  // 2. Échelon Cas par Cas Spécifique : Analyse par nom de jeu (ex: Akwaba, Kado...)
+  // et suite décroissante des numéros de tirages
+  const defaultSlotNames: Record<DrawSlot, string> = {
+    morning: 'AKWABA',
+    noon: 'ÉTOILE',
+    afternoon: 'FORTUNE',
+    evening: 'DIAMANT',
+  };
+  const effectiveGameName = (targetGameName || defaultSlotNames[targetSlot] || '').trim().toUpperCase();
 
-  // Score = weighted frequency + gap factor + chi2 bonus
-  const scored = stats.map((s) => {
-    const freqNorm = s.count / maxCount;
-    const gapNorm = s.currentGap / maxGap;
-    const chi2Bonus = s.isSignificant ? 0.15 : 0;
-    const score = freqNorm * 0.65 + gapNorm * 0.25 + chi2Bonus;
+  const gameSpecificDraws = allDraws.filter((d) => {
+    if (!d.drawName) return false;
+    const nameUpper = d.drawName.toUpperCase();
+    return nameUpper.includes(effectiveGameName) || effectiveGameName.includes(nameUpper);
+  });
+
+  const hasSpecificGameData = gameSpecificDraws.length >= 6;
+  const activeGameDraws = hasSpecificGameData ? gameSpecificDraws : activeHourlyDraws;
+  const gameStats = computeNumberStatistics(activeGameDraws);
+  const maxGameCount = Math.max(...gameStats.map((s) => s.count), 1);
+  const maxGameGap = Math.max(...gameStats.map((s) => s.currentGap), 1);
+  const gameStatsMap = new Map(gameStats.map((s) => [s.num, s]));
+
+  // Track recent outputs in descending order for continuous adaptation
+  // Numbers that appeared in the 3 most recent draws of this exact game receive a proximity bonus
+  const recent3GameDraws = activeGameDraws.slice(0, 3);
+  const recentGameAppearances = new Map<number, number>();
+  recent3GameDraws.forEach((draw, dIdx) => {
+    draw.numbers.forEach((n) => {
+      // More recent draws have higher recurrence weight
+      const weight = 3 - dIdx;
+      recentGameAppearances.set(n, (recentGameAppearances.get(n) || 0) + weight);
+    });
+  });
+
+  // Global stats for stabilization
+  const globalStats = computeNumberStatistics(allDraws);
+  const maxGlobalCount = Math.max(...globalStats.map((s) => s.count), 1);
+  const globalStatsMap = new Map(globalStats.map((s) => [s.num, s]));
+
+  // Hierarchical weighting: Specific case-by-case first, generalized slot second
+  const specificWeight = hasSpecificGameData ? 0.55 : 0.25;
+  const hourlyWeight = hasSpecificGameData ? 0.35 : 0.65;
+  const globalWeight = 0.10;
+
+  // 3. Compute Composite Calibrated Score for all 90 numbers
+  const scored = Array.from({ length: 90 }, (_, i) => i + 1).map((num) => {
+    const gStat = gameStatsMap.get(num);
+    const hStat = hourlyStatsMap.get(num);
+    const glStat = globalStatsMap.get(num);
+
+    const gameFreqNorm = (gStat?.count || 0) / maxGameCount;
+    const gameGapNorm = (gStat?.currentGap || 0) / maxGameGap;
+    const gameScore = gameFreqNorm * 0.70 + (1 - Math.min(gameGapNorm, 1)) * 0.30;
+
+    const hourlyFreqNorm = (hStat?.count || 0) / maxHourlyCount;
+    const hourlyGapNorm = (hStat?.currentGap || 0) / maxHourlyGap;
+    const hourlyScore = hourlyFreqNorm * 0.65 + hourlyGapNorm * 0.25 + (hStat?.isSignificant ? 0.10 : 0);
+
+    const globalFreqNorm = (glStat?.count || 0) / maxGlobalCount;
+
+    // Continuous adaptation momentum bonus (up to +0.12 pts)
+    const recentMomentum = ((recentGameAppearances.get(num) || 0) / 6) * 0.12;
+
+    const totalScore =
+      gameScore * specificWeight +
+      hourlyScore * hourlyWeight +
+      globalFreqNorm * globalWeight +
+      recentMomentum;
+
     return {
-      num: s.num,
-      frequency: s.count,
-      gap: s.currentGap,
-      score: Number(score.toFixed(4)),
+      num,
+      frequency: hStat?.count || 0,
+      gap: hStat?.currentGap || 0,
+      score: Number(totalScore.toFixed(4)),
     };
   });
 
-  // Top 5 by score
-  scored.sort((a, b) => b.score - a.score);
+  // Top 5 by calibrated score
+  scored.sort((a, b) => b.score - a.score || a.num - b.num);
   const top5 = scored.slice(0, 5);
 
   // Alternative Top 5 by highest gap (retard)
-  const byGap = [...stats].sort((a, b) => b.currentGap - a.currentGap);
+  const byGap = [...hourlyStats].sort((a, b) => b.currentGap - a.currentGap);
   const gap5 = byGap.slice(0, 5).map((s) => ({
     num: s.num,
     gap: s.currentGap,
     frequency: s.count,
   }));
 
-  // Pure random alternative pick (to demonstrate unbiased stochastic baseline)
+  // Pure random alternative pick
   const pool = Array.from({ length: 90 }, (_, i) => i + 1);
   const pureRandomPick: number[] = [];
   for (let i = 0; i < 5; i++) {
@@ -115,6 +181,18 @@ export function runMethod1(
   }
   pureRandomPick.sort((a, b) => a - b);
 
+  // Top numbers specifically for the targeted game series
+  const gameTopNumbers = [...gameStats]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((s) => ({ num: s.num, count: s.count, gap: s.currentGap }));
+
+  // Top numbers for the hourly slot in general
+  const hourlyTopNumbers = [...hourlyStats]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((s) => ({ num: s.num, count: s.count, gap: s.currentGap }));
+
   return {
     top5,
     gap5,
@@ -122,6 +200,18 @@ export function runMethod1(
     theoreticalProbAtLeast4: THEORETICAL_ODDS.atLeastFour,
     theoreticalProb5: THEORETICAL_ODDS.fiveCorrect,
     pureRandomPick,
+    caseStudyDetails: {
+      targetGameName: effectiveGameName,
+      gameSpecificDrawsCount: gameSpecificDraws.length,
+      hourlyDrawsCount: activeHourlyDraws.length,
+      gameTopNumbers,
+      hourlyTopNumbers,
+      hierarchyWeights: {
+        specificGame: Math.round(specificWeight * 100),
+        hourlySlot: Math.round(hourlyWeight * 100),
+        global: Math.round(globalWeight * 100),
+      },
+    },
   };
 }
 

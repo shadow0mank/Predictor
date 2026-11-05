@@ -57,6 +57,14 @@ export interface Method1Result {
   theoreticalProbAtLeast4: number;
   theoreticalProb5: number;
   pureRandomPick: number[];
+  caseStudyDetails?: {
+    targetGameName: string;
+    gameSpecificDrawsCount: number;
+    hourlyDrawsCount: number;
+    gameTopNumbers: { num: number; count: number; gap: number }[];
+    hourlyTopNumbers: { num: number; count: number; gap: number }[];
+    hierarchyWeights: { specificGame: number; hourlySlot: number; global: number };
+  };
 }
 
 export interface Method2Result {
@@ -267,5 +275,25 @@ export interface SimulationResult {
   backupBalls: number[];
   consensusStrength: number;
   totalStudiesCount: number;
+}
+
+export type TicketBetType = '1N' | '2N' | '3N' | '4N' | '5N';
+
+export interface VirtualTicket {
+  id: string;
+  createdAt: string; // ISO
+  targetDate: string; // YYYY-MM-DD
+  targetSlot: DrawSlot;
+  targetTime: string; // e.g. "10:00"
+  targetGameName: string; // e.g. "AKWABA", "ÉTOILE", etc.
+  numbers: number[]; // [24, 68] or [24, 68, 11, ...]
+  betType: TicketBetType;
+  stakeFCFA: number; // e.g. 1000
+  sourceMethod: string; // "M1 (Fréquences)", "M4 (Matrices CI)", "Consensus", "Simulateur"
+  status: 'En attente' | 'Gagnant' | 'Non gagnant';
+  matchedNumbers?: number[];
+  officialDrawNumbers?: number[];
+  gainFCFA?: number;
+  multiplier?: number;
 }
 

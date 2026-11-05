@@ -16,6 +16,7 @@ import { HistoryTable } from './components/HistoryTable';
 import { AnomaliesView } from './components/AnomaliesView';
 import { MethodRankingView } from './components/MethodRankingView';
 import { BallGeneratorView } from './components/BallGeneratorView';
+import { VirtualTicketsView } from './components/VirtualTicketsView';
 import { Check, ShieldCheck } from 'lucide-react';
 
 export default function App() {
@@ -132,6 +133,14 @@ export default function App() {
         )}
 
         {activeTab === 'generator' && <BallGeneratorView draws={draws} />}
+
+        {activeTab === 'tickets' && (
+          <VirtualTicketsView
+            draws={draws}
+            onNavigateToPredictions={() => handleNavigateTab('predictions')}
+            onNavigateToSimulator={() => handleNavigateTab('generator')}
+          />
+        )}
 
         {activeTab === 'statistics' && (
           <StatisticsDashboard

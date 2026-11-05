@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Menu, X, Activity } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'predictions' | 'generator' | 'statistics' | 'history' | 'anomalies' | 'ranking';
+export type ActiveTab = 'overview' | 'predictions' | 'generator' | 'tickets' | 'statistics' | 'history' | 'anomalies' | 'ranking';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -24,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'overview', label: 'Vue Générale' },
     { id: 'predictions', label: 'Prédictions' },
     { id: 'generator', label: 'Simulateur de Boules' },
+    { id: 'tickets', label: 'Mes Tickets' },
     { id: 'statistics', label: 'Analyses & Graphes' },
     { id: 'history', label: 'Historique des Tirages' },
     { id: 'anomalies', label: 'Anomalies' },

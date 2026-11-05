@@ -14,6 +14,7 @@ import { THEORETICAL_ODDS } from '../utils/probability';
 import { LotteryBall } from './LotteryBall';
 import { EthicalBanner } from './EthicalBanner';
 import { TechnicalAnnexModal } from './TechnicalAnnexModal';
+import { CreateTicketModal } from './CreateTicketModal';
 import {
   Calendar,
   Clock,
@@ -31,6 +32,9 @@ import {
   Layers,
   ExternalLink,
   Globe,
+  Lock,
+  Ticket,
+  Check,
 } from 'lucide-react';
 
 interface PredictionSpaceProps {
@@ -52,41 +56,77 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
   const [showTechnicalModal, setShowTechnicalModal] = useState(false);
   const [modalMethodTarget, setModalMethodTarget] = useState<1 | 2 | 3 | 4 | 5>(1);
 
+  // Quick ticket creation modal state
+  const [ticketModalData, setTicketModalData] = useState<{
+    isOpen: boolean;
+    numbers: number[];
+    sourceMethod: string;
+  } | null>(null);
+
   // Current slot definition
   const currentSlotDef = useMemo(() => {
     return SLOTS_CONFIG.find((s) => s.slot === selectedSlotKey) || SLOTS_CONFIG[0];
   }, [selectedSlotKey]);
 
-  // Compute Method 1
+  // Check if official draw for selectedDate and selectedSlot has already occurred in history
+  const pastOfficialDraw = useMemo(() => {
+    return draws.find(
+      (d) =>
+        d.drawDate === selectedDate &&
+        (d.slot === selectedSlotKey || d.drawTime.startsWith(currentSlotDef.time.slice(0, 2)))
+    );
+  }, [draws, selectedDate, selectedSlotKey, currentSlotDef.time]);
+
+  const isDrawCompleted = !!pastOfficialDraw;
+
+  // FREEZE PAST PREDICTIONS: If the draw hour is past and present in history,
+  // training history is strictly restricted to draws that took place BEFORE this draw!
+  // This guarantees that past predictions are frozen and never mutated retroactively.
+  const effectiveDraws = useMemo(() => {
+    if (pastOfficialDraw) {
+      const idx = draws.findIndex((d) => d.id === pastOfficialDraw.id);
+      if (idx !== -1) {
+        return draws.slice(idx + 1);
+      }
+    }
+    return draws;
+  }, [draws, pastOfficialDraw]);
+
+  // Compute Method 1 with case-by-case analysis
   const method1 = useMemo(() => {
-    return runMethod1(draws, selectedSlotKey, 365);
-  }, [draws, selectedSlotKey]);
+    return runMethod1(
+      effectiveDraws,
+      selectedSlotKey,
+      365,
+      pastOfficialDraw?.drawName || currentSlotDef.name
+    );
+  }, [effectiveDraws, selectedSlotKey, pastOfficialDraw, currentSlotDef.name]);
 
   // Compute Method 2
   const method2 = useMemo(() => {
-    return runMethod2(draws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant);
-  }, [draws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant]);
+    return runMethod2(effectiveDraws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant);
+  }, [effectiveDraws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant]);
 
   // Compute Method 3
   const method3 = useMemo(() => {
-    return runMethod3(draws, selectedSlotKey, selectedDate, 20);
-  }, [draws, selectedSlotKey, selectedDate]);
+    return runMethod3(effectiveDraws, selectedSlotKey, selectedDate, 20);
+  }, [effectiveDraws, selectedSlotKey, selectedDate]);
 
   // Compute Method 4 (Matrices Côte d'Ivoire from Loto Matrice Plus)
   const method4 = useMemo(() => {
     return runMethod4(
-      draws,
+      effectiveDraws,
       selectedSlotKey,
       selectedDate,
       currentSlotDef.time,
-      currentSlotDef.name
+      pastOfficialDraw?.drawName || currentSlotDef.name
     );
-  }, [draws, selectedSlotKey, selectedDate, currentSlotDef.time, currentSlotDef.name]);
+  }, [effectiveDraws, selectedSlotKey, selectedDate, currentSlotDef.time, pastOfficialDraw, currentSlotDef.name]);
 
   // Compute Method 5 (GhanaWeb Solutions Forecast + Output Frequencies Collaboration)
   const method5 = useMemo(() => {
-    return runMethod5(draws, selectedSlotKey, currentSlotDef.time);
-  }, [draws, selectedSlotKey, currentSlotDef.time]);
+    return runMethod5(effectiveDraws, selectedSlotKey, currentSlotDef.time);
+  }, [effectiveDraws, selectedSlotKey, currentSlotDef.time]);
 
   // Compute Consensus across all 5 methods
   const consensus = useMemo(() => {
@@ -179,6 +219,38 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Draw Status Callout: Frozen if passed / Active if upcoming */}
+        {isDrawCompleted && pastOfficialDraw ? (
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 text-amber-950 font-medium">
+              <div className="w-7 h-7 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center shrink-0">
+                <Lock className="w-3.5 h-3.5 text-amber-900" />
+              </div>
+              <div>
+                <strong className="font-heading font-bold text-amber-950">
+                  Tirage Verrouillé & Archivé ({currentSlotDef.time} · {pastOfficialDraw.drawName}) :
+                </strong>{' '}
+                <span>
+                  L'heure de jeu est passée. Les calculs ne sont pas actualisés afin d'éviter toute confusion et de permettre la vérification exacte des prédictions initiales.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 bg-white px-3 py-1.5 rounded-lg border border-amber-200 font-mono text-[11px] shadow-2xs">
+              <span className="text-slate-500 font-sans">Numéros sortis :</span>
+              <strong className="text-[#0F3E2E] font-extrabold">{pastOfficialDraw.numbers.join(' - ')}</strong>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 flex items-center justify-between text-xs text-emerald-950 font-medium">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>
+                <strong>Prochain Tirage en Attente ({currentSlotDef.time} · {currentSlotDef.name}) :</strong> Prédictions actives calculées en direct sur le dernier état certifié.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Consensus Panel (Section B.5) */}
@@ -187,12 +259,30 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#D97706]" />
             <h3 className="font-heading font-bold text-sm sm:text-base text-[#92400E]">
-              Panneau de Consensus des 4 Méthodes
+              Panneau de Consensus des 5 Études
             </h3>
           </div>
-          <span className="text-[11px] text-[#B45309] font-medium">
-            Numéros retenus simultanément par au moins 2 méthodes
-          </span>
+
+          <div className="flex items-center gap-2">
+            {consensus.consensusNumbers.length > 0 && (
+              <button
+                onClick={() =>
+                  setTicketModalData({
+                    isOpen: true,
+                    numbers: consensus.consensusNumbers.slice(0, 5).map((c) => c.num),
+                    sourceMethod: 'Consensus des 5 Études',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#B45309] hover:bg-[#92400E] text-white rounded text-xs font-heading font-bold shadow-2xs transition-colors cursor-pointer"
+              >
+                <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                <span>Créer un Ticket avec ce Consensus</span>
+              </button>
+            )}
+            <span className="text-[11px] text-[#B45309] font-medium hidden sm:inline">
+              Numéros retenus simultanément par au moins 2 méthodes
+            </span>
+          </div>
         </div>
 
         {consensus.consensusNumbers.length > 0 ? (
@@ -311,16 +401,32 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     Les 5 numéros recommandés (Top Fréquence & Régularité)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Calculé sur l’historique des tirages {currentSlotDef.name} ({currentSlotDef.time}).
+                    Calculé par analyse hiérarchique au cas par cas ({method1.caseStudyDetails?.targetGameName || currentSlotDef.name}) et généralisation horaire ({currentSlotDef.time}).
                   </p>
                 </div>
-                <button
-                  onClick={() => openTechnicalModal(1)}
-                  className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1 self-start sm:self-center"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Voir le processus de calcul (Partie C.1)</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <button
+                    onClick={() =>
+                      setTicketModalData({
+                        isOpen: true,
+                        numbers: method1.top5.map((item) => item.num),
+                        sourceMethod: 'Méthode 1 · Fréquences de Sortie',
+                      })
+                    }
+                    className="px-3 py-1.5 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded text-xs font-heading font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                    <span>Créer un Ticket M1</span>
+                  </button>
+
+                  <button
+                    onClick={() => openTechnicalModal(1)}
+                    className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span>Fiche C.1</span>
+                  </button>
+                </div>
               </div>
 
               {/* Top 5 Display */}
@@ -347,6 +453,84 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Case-by-Case Hierarchical Analysis Card (Specific game name vs Hourly slot) */}
+              {method1.caseStudyDetails && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-[#0F3E2E]" />
+                      <h5 className="font-heading font-bold text-xs sm:text-sm text-slate-900">
+                        Analyse au Cas par Cas : Jeu « {method1.caseStudyDetails.targetGameName} » & Généralisation
+                      </h5>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
+                      <span>Pondération :</span>
+                      <strong className="text-[#0F3E2E] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        {method1.caseStudyDetails.hierarchyWeights.specificGame}% Cas Spécifique
+                      </strong>
+                      <span>+</span>
+                      <strong className="text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                        {method1.caseStudyDetails.hierarchyWeights.hourlySlot}% Tranche Horaire
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                    {/* Tier 1: Specific Game by name & descending order */}
+                    <div className="p-3 bg-white rounded border border-slate-200 space-y-1.5">
+                      <div className="font-sans font-bold text-slate-800 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                          <span>1. Échelon Cas par Cas : {method1.caseStudyDetails.targetGameName}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {method1.caseStudyDetails.gameSpecificDrawsCount} tirages en suite décroissante
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-sans">
+                        Fréquences et retards calculés spécifiquement sur les tirages passés portant ce nom exact.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {method1.caseStudyDetails.gameTopNumbers.map((item) => (
+                          <span
+                            key={item.num}
+                            className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 font-bold border border-emerald-200 text-xs"
+                          >
+                            N°{item.num} ({item.count} sorties)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tier 2: Hourly general slot */}
+                    <div className="p-3 bg-white rounded border border-slate-200 space-y-1.5">
+                      <div className="font-sans font-bold text-slate-800 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                          <span>2. Échelon Généralisé : Tranche {currentSlotDef.time}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {method1.caseStudyDetails.hourlyDrawsCount} tirages horaires
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-sans">
+                        Ensemble des tirages programmés à {currentSlotDef.time} (Akwaba, Kado, Soutra...).
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {method1.caseStudyDetails.hourlyTopNumbers.map((item) => (
+                          <span
+                            key={item.num}
+                            className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 font-bold border border-blue-200 text-xs"
+                          >
+                            N°{item.num} ({item.count} sorties)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Alternative Top 5 by Gaps (Numéros en retard) */}
               <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-3">
@@ -443,11 +627,24 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     </button>
                   </div>
                   <button
+                    onClick={() =>
+                      setTicketModalData({
+                        isOpen: true,
+                        numbers: method2.recommended5.map((item) => item.num),
+                        sourceMethod: 'Méthode 2 · Facteur Chance Décimal',
+                      })
+                    }
+                    className="px-3 py-1.5 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded text-xs font-heading font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                    <span>Créer un Ticket M2</span>
+                  </button>
+                  <button
                     onClick={() => openTechnicalModal(2)}
                     className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1"
                   >
                     <Info className="w-3.5 h-3.5" />
-                    <span>Voir le processus (Partie C.2)</span>
+                    <span>Fiche C.2</span>
                   </button>
                 </div>
               </div>
@@ -582,13 +779,28 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     Calibrage multi-features avec validation adaptative sur tirage masqué
                   </p>
                 </div>
-                <button
-                  onClick={() => openTechnicalModal(3)}
-                  className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1 self-start sm:self-center"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Voir le processus (Partie C.3)</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <button
+                    onClick={() =>
+                      setTicketModalData({
+                        isOpen: true,
+                        numbers: method3.recommended5.map((item) => item.num),
+                        sourceMethod: 'Méthode 3 · Rétro-Ingénierie',
+                      })
+                    }
+                    className="px-3 py-1.5 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded text-xs font-heading font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                    <span>Créer un Ticket M3</span>
+                  </button>
+                  <button
+                    onClick={() => openTechnicalModal(3)}
+                    className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span>Fiche C.3</span>
+                  </button>
+                </div>
               </div>
 
               {/* 5 Recommended Numbers with Matrix Position and Model Score */}
@@ -702,13 +914,28 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                     Calculé d'après la clé matricielle officielle, le clavier, l'event et le code de l'application pour {currentSlotDef.name} ({currentSlotDef.time}).
                   </p>
                 </div>
-                <button
-                  onClick={() => openTechnicalModal(4)}
-                  className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1 self-start sm:self-center"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Voir le processus de calcul (Annexe C.4)</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <button
+                    onClick={() =>
+                      setTicketModalData({
+                        isOpen: true,
+                        numbers: method4.recommended5.map((item) => item.num),
+                        sourceMethod: "Méthode 4 · Matrices Côte d'Ivoire",
+                      })
+                    }
+                    className="px-3 py-1.5 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded text-xs font-heading font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                    <span>Créer un Ticket M4</span>
+                  </button>
+                  <button
+                    onClick={() => openTechnicalModal(4)}
+                    className="text-xs font-semibold text-[#0F3E2E] hover:text-[#0A291E] underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span>Fiche C.4</span>
+                  </button>
+                </div>
               </div>
 
               {/* Top 5 Recommended Display */}
@@ -879,7 +1106,21 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() =>
+                      setTicketModalData({
+                        isOpen: true,
+                        numbers: method5.recommended5.map((r) => r.num),
+                        sourceMethod: 'M5 : GhanaWeb & Fréquences de Sortie',
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Ticket className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Créer un Ticket M5</span>
+                  </button>
+
                   <a
                     href={GHANA_WEB_SOURCE_URL}
                     target="_blank"
@@ -1234,6 +1475,20 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
         initialMethod={modalMethodTarget}
         onClose={() => setShowTechnicalModal(false)}
       />
+
+      {/* Virtual Ticket Creation Modal */}
+      {ticketModalData && (
+        <CreateTicketModal
+          isOpen={ticketModalData.isOpen}
+          onClose={() => setTicketModalData(null)}
+          initialNumbers={ticketModalData.numbers}
+          initialSlot={selectedSlotKey}
+          initialSlotTime={currentSlotDef.time}
+          initialGameName={pastOfficialDraw?.drawName || currentSlotDef.name}
+          initialDate={selectedDate}
+          sourceMethodName={ticketModalData.sourceMethod}
+        />
+      )}
     </div>
   );
 };

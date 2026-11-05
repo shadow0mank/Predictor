@@ -15,6 +15,7 @@ import {
   Ticket,
   Calculator,
   Flame,
+  BookmarkPlus,
 } from 'lucide-react';
 import { Draw, DrawSlot, SimulationStudyMode } from '../types/lottery';
 import {
@@ -25,6 +26,7 @@ import {
   getBallColor,
 } from '../utils/simulatorEngine';
 import { lotteryAudio } from '../utils/lotteryAudio';
+import { CreateTicketModal } from './CreateTicketModal';
 
 interface BallGeneratorViewProps {
   draws: Draw[];
@@ -86,6 +88,7 @@ export const BallGeneratorView: React.FC<BallGeneratorViewProps> = ({ draws }) =
   const [ticketNumbers, setTicketNumbers] = useState<number[]>([]);
   const [ticketBetType, setTicketBetType] = useState<'1N' | '2N' | '3N' | '4N' | '5N'>('2N');
   const [ticketStake, setTicketStake] = useState<number>(1000);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
   // Generate target simulated winning numbers based on selected study & slot
   const simulationData = useMemo(() => {
@@ -95,6 +98,10 @@ export const BallGeneratorView: React.FC<BallGeneratorViewProps> = ({ draws }) =
   const targetWinningNumbers = useMemo(() => {
     return simulationData.winningBalls.map((b) => b.num);
   }, [simulationData]);
+
+  const currentSlotInfo = useMemo(() => {
+    return SLOTS_LIST.find((s) => s.slot === selectedSlot) || SLOTS_LIST[0];
+  }, [selectedSlot]);
 
   // Canvas ref & physics particles state
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -818,13 +825,22 @@ export const BallGeneratorView: React.FC<BallGeneratorViewProps> = ({ draws }) =
               <p className="text-emerald-950 leading-relaxed">
                 Les 5 boules gagnantes sont extraites conformément aux lois stochastiques du tirage Lonaci et à la synthèse des études. Vous pouvez tester cette combinaison ci-dessous.
               </p>
-              <button
-                onClick={handleLoadTicketFromSimulation}
-                className="w-full mt-2 py-2 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded font-heading font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
-                <span>Charger ces 5 numéros dans le Ticket Virtuel</span>
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <button
+                  onClick={handleLoadTicketFromSimulation}
+                  className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-heading font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-slate-300"
+                >
+                  <Ticket className="w-3.5 h-3.5 text-[#FE932C]" />
+                  <span>Tester dans le Calculateur ci-dessous</span>
+                </button>
+                <button
+                  onClick={() => setIsTicketModalOpen(true)}
+                  className="py-2 px-3 bg-[#0F3E2E] hover:bg-[#0A291E] text-white rounded font-heading font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <BookmarkPlus className="w-3.5 h-3.5 text-[#FE932C]" />
+                  <span>Enregistrer dans Mes Tickets Virtuels</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1086,6 +1102,20 @@ export const BallGeneratorView: React.FC<BallGeneratorViewProps> = ({ draws }) =
           </div>
         )}
       </div>
+
+      {/* Virtual Ticket Creation Modal */}
+      {isTicketModalOpen && (
+        <CreateTicketModal
+          isOpen={isTicketModalOpen}
+          onClose={() => setIsTicketModalOpen(false)}
+          initialNumbers={targetWinningNumbers}
+          initialSlot={selectedSlot}
+          initialSlotTime={currentSlotInfo.time}
+          initialGameName={currentSlotInfo.name}
+          initialDate={new Date().toISOString().split('T')[0]}
+          sourceMethodName={`Simulateur (${STUDY_MODES.find((m) => m.id === studyMode)?.label || 'Synthèse'})`}
+        />
+      )}
     </div>
   );
 };
