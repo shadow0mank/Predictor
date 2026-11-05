@@ -239,3 +239,33 @@ export interface HourlySlotRanking {
   rankings: MethodRankingItem[];
 }
 
+export type SimulationStudyMode =
+  | 'consensus'
+  | 'method1'
+  | 'method2'
+  | 'method3'
+  | 'method4'
+  | 'method5';
+
+export interface SimulatedWinningBall {
+  position: number; // 1 to 5
+  num: number;
+  role: string;
+  endorsingMethods: ('M1' | 'M2' | 'M3' | 'M4' | 'M5')[];
+  consensusScore: number;
+  slotFrequency: number;
+  currentGap: number;
+  extracted: boolean;
+}
+
+export interface SimulationResult {
+  slot: DrawSlot;
+  timeStr: string;
+  slotName: string;
+  studyMode: SimulationStudyMode;
+  winningBalls: SimulatedWinningBall[];
+  backupBalls: number[];
+  consensusStrength: number;
+  totalStudiesCount: number;
+}
+

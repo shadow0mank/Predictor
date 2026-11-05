@@ -15,6 +15,7 @@ import { StatisticsDashboard } from './components/StatisticsDashboard';
 import { HistoryTable } from './components/HistoryTable';
 import { AnomaliesView } from './components/AnomaliesView';
 import { MethodRankingView } from './components/MethodRankingView';
+import { BallGeneratorView } from './components/BallGeneratorView';
 import { Check, ShieldCheck } from 'lucide-react';
 
 export default function App() {
@@ -129,6 +130,8 @@ export default function App() {
             selectedSlotInit={selectedSlotForPredictions}
           />
         )}
+
+        {activeTab === 'generator' && <BallGeneratorView draws={draws} />}
 
         {activeTab === 'statistics' && (
           <StatisticsDashboard

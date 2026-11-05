@@ -185,22 +185,48 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
         </div>
       </div>
 
+      {/* Simulator Hero Feature Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-[#0F3E2E] to-slate-900 text-white rounded-xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-5 border border-emerald-900/60">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-[#FE932C] text-slate-950 font-black text-[10px] uppercase tracking-wider">
+              NOUVEAU
+            </span>
+            <h4 className="font-heading font-extrabold text-base sm:text-lg text-white">
+              Simulateur de Générateur de Boules (Tirage Virtuel)
+            </h4>
+          </div>
+          <p className="text-xs text-slate-200 max-w-2xl leading-relaxed">
+            Vivez l'expérience immersive du tirage électromécanique : sphère acrylique à flux pneumatique, brassage réaliste des 90 boules et extraction des 5 numéros gagnants calibrés sur <strong>l’ensemble des études menées</strong>.
+          </p>
+        </div>
+
+        <button
+          onClick={() => onNavigateTab('generator')}
+          className="px-5 py-2.5 bg-[#FE932C] hover:bg-[#e68020] text-slate-950 font-heading font-extrabold text-xs sm:text-sm rounded-lg transition-all cursor-pointer shrink-0 shadow-md flex items-center gap-2 hover:scale-[1.02]"
+        >
+          <span>Lancer le Simulateur</span>
+          <ArrowRight className="w-4 h-4 text-slate-950" />
+        </button>
+      </div>
+
       {/* Ranking Callout Banner */}
       <div className="bg-gradient-to-r from-[#0F3E2E] to-[#164E3A] text-white rounded-lg p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-[#FE932C]" />
             <h4 className="font-heading font-bold text-base sm:text-lg">
-              Classement Officiel des 4 Méthodes
+              Classement Officiel des Méthodes
             </h4>
           </div>
           <p className="text-xs text-emerald-100 max-w-2xl leading-relaxed">
             Consultez le banc d'essai complet : quelle méthode fournit le plus de numéros gagnants exacts et quelle est la précision de chaque position (Positions 1 à 5) lors des tirages réels ?
           </p>
         </div>
+
         <button
           onClick={() => onNavigateTab('ranking')}
-          className="px-4 py-2 bg-[#FE932C] hover:bg-[#e68020] text-slate-950 font-heading font-bold text-xs rounded transition-colors cursor-pointer shrink-0 shadow-xs flex items-center gap-2"
+          className="px-4 py-2 bg-white hover:bg-slate-100 text-[#0F3E2E] font-heading font-bold text-xs rounded transition-colors cursor-pointer shrink-0 shadow-xs flex items-center gap-2"
         >
           <span>Voir le Classement & Précision</span>
           <ArrowRight className="w-4 h-4" />
