@@ -167,7 +167,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
   const latestDate = draws[0]?.drawDate || '2026-11-03';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Certified Source Banner */}
       <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-4 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -311,8 +311,8 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
       </div>
 
       {/* Main Table */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs w-full max-w-full">
+        <div className="overflow-x-auto w-full max-w-full">
           <table className="w-full text-xs text-left">
             <thead className="bg-[#F8FAFC] text-slate-600 font-mono uppercase text-[11px] border-b border-slate-200 tracking-wider">
               <tr>

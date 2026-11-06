@@ -13,7 +13,6 @@ import { OverviewView } from './components/OverviewView';
 import { PredictionSpace } from './components/PredictionSpace';
 import { StatisticsDashboard } from './components/StatisticsDashboard';
 import { HistoryTable } from './components/HistoryTable';
-import { AnomaliesView } from './components/AnomaliesView';
 import { MethodRankingView } from './components/MethodRankingView';
 import { BallGeneratorView } from './components/BallGeneratorView';
 import { VirtualTicketsView } from './components/VirtualTicketsView';
@@ -101,7 +100,7 @@ export default function App() {
   const latestDraw = draws[0];
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col font-sans selection:bg-[#fe932c]/20 selection:text-[#00271b]">
+    <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col font-sans selection:bg-[#fe932c]/20 selection:text-[#00271b] w-full max-w-full overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-[#0F3E2E] text-white px-4 py-3 rounded-lg shadow-xl text-xs sm:text-sm font-medium flex items-center gap-2.5 border border-emerald-700 animate-in fade-in slide-in-from-bottom-2">
@@ -119,8 +118,8 @@ export default function App() {
         lastUpdatedDate={latestDraw?.drawDate}
       />
 
-      {/* Main Viewport Container */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Main Viewport Container - Strictly vertical scrolling, zero horizontal overflow */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 min-w-0 overflow-x-hidden">
         {activeTab === 'overview' && (
           <OverviewView draws={draws} onNavigateTab={handleNavigateTab} />
         )}
@@ -156,14 +155,6 @@ export default function App() {
             onAddDraw={handleAddDraw}
             onRefresh={handleRefreshHistory}
             isRefreshing={isRefreshing}
-          />
-        )}
-
-        {activeTab === 'anomalies' && (
-          <AnomaliesView
-            draws={draws}
-            isBiasActive={isBiasActive}
-            onToggleBias={handleToggleBias}
           />
         )}
 

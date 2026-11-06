@@ -105,7 +105,7 @@ export const CountdownHero: React.FC<CountdownHeroProps> = ({
             <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
               5 Numéros Gagnants (WIN) :
             </div>
-            <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3.5">
               {latestDraw?.numbers.map((num, i) => (
                 <LotteryBall
                   key={i}

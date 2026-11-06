@@ -154,7 +154,7 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Permanent Ethical Banner */}
       <EthicalBanner />
 

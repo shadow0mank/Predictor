@@ -56,7 +56,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ draws, onNavigateTab
   }, [draws, currentSlot]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Permanent Ethical Warning Banner */}
       <EthicalBanner />
 

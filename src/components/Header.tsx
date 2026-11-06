@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Menu, X, Activity } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'predictions' | 'generator' | 'tickets' | 'statistics' | 'history' | 'anomalies' | 'ranking';
+export type ActiveTab = 'overview' | 'predictions' | 'generator' | 'tickets' | 'statistics' | 'history' | 'ranking';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -23,17 +23,16 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { id: ActiveTab; label: string }[] = [
     { id: 'overview', label: 'Vue Générale' },
     { id: 'predictions', label: 'Prédictions' },
-    { id: 'generator', label: 'Simulateur de Boules' },
+    { id: 'generator', label: 'Simulateur' },
     { id: 'tickets', label: 'Mes Tickets' },
     { id: 'statistics', label: 'Analyses & Graphes' },
-    { id: 'history', label: 'Historique des Tirages' },
-    { id: 'anomalies', label: 'Anomalies' },
-    { id: 'ranking', label: 'Classement des Méthodes' },
+    { id: 'history', label: 'Historique' },
+    { id: 'ranking', label: 'Classement Méthodes' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 w-full max-w-full overflow-x-hidden">
+      <div className="max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-6 h-16">
           {/* Zone 1: Single text element wordmark */}
           <div className="flex items-center gap-3 shrink-0">

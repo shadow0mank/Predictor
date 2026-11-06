@@ -510,7 +510,7 @@ export const BallGeneratorView: React.FC<BallGeneratorViewProps> = ({ draws }) =
   }, [ticketNumbers, extractedCount, simulationData.winningBalls, ticketBetType, ticketStake]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Top Header & Slot / Study Selectors */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
