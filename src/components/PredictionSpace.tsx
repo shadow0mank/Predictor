@@ -63,6 +63,9 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
     sourceMethod: string;
   } | null>(null);
 
+  // Method 3 Case Study: Selected Duo index for transition inspection
+  const [selectedDuoIdx, setSelectedDuoIdx] = useState<number>(0);
+
   // Current slot definition
   const currentSlotDef = useMemo(() => {
     return SLOTS_CONFIG.find((s) => s.slot === selectedSlotKey) || SLOTS_CONFIG[0];
@@ -107,10 +110,16 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
     return runMethod2(effectiveDraws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant);
   }, [effectiveDraws, selectedSlotKey, selectedDate, currentSlotDef.time, chanceVariant]);
 
-  // Compute Method 3
+  // Compute Method 3 with case-by-case analysis & game name
   const method3 = useMemo(() => {
-    return runMethod3(effectiveDraws, selectedSlotKey, selectedDate, 20);
-  }, [effectiveDraws, selectedSlotKey, selectedDate]);
+    return runMethod3(
+      effectiveDraws,
+      selectedSlotKey,
+      selectedDate,
+      20,
+      pastOfficialDraw?.drawName || currentSlotDef.name
+    );
+  }, [effectiveDraws, selectedSlotKey, selectedDate, pastOfficialDraw, currentSlotDef.name]);
 
   // Compute Method 4 (Matrices Côte d'Ivoire from Loto Matrice Plus)
   const method4 = useMemo(() => {
@@ -777,16 +786,16 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
             </div>
           )}
 
-          {/* TAB 3: METHOD 3 */}
+          {/* TAB 3: METHOD 3 (RÉTRO-INGÉNIERIE & ÉCHELON CAS PAR CAS) */}
           {activeMethodTab === 3 && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="font-heading font-bold text-base text-slate-900">
-                    Les 5 numéros recommandés (Rétro-Ingénierie & Scoring Linéaire)
+                    Les 5 numéros recommandés (Rétro-Ingénierie & Synthèse Positionnelle)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Calibrage multi-features avec validation adaptative sur tirage masqué
+                    Échelon Cas par Cas sur <strong className="text-slate-800">{method3.caseStudy?.targetGameName || currentSlotDef.name}</strong> ({currentSlotDef.time}) · Dépouillement des duos consécutifs (gagnants & machines) et synthèse de correspondance
                   </p>
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-center">
@@ -813,37 +822,234 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                 </div>
               </div>
 
-              {/* 5 Recommended Numbers with Matrix Position and Model Score */}
+              {/* 5 Recommended Numbers with Position, Formula Name, Expression & Score */}
               <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 {method3.recommended5.map((item, idx) => (
                   <div
                     key={item.num}
                     className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col items-center text-center gap-2"
                   >
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      Rang {idx + 1}
-                    </span>
-                    <LotteryBall number={item.num} variant="emerald" size="xl" />
-                    <div className="space-y-1 w-full pt-1 border-t border-slate-200 text-xs font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Score modèle :</span>
-                        <span className="font-bold text-[#0F3E2E]">{item.modelScore.toFixed(3)}</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                        Position {idx + 1}
+                      </span>
+                      {method3.caseStudy?.twoSureAnchor?.includes(item.num) && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-[#92400E] border border-amber-300">
+                          Two-Sure
+                        </span>
+                      )}
+                    </div>
+                    <LotteryBall number={item.num} variant={method3.caseStudy?.twoSureAnchor?.includes(item.num) ? 'hot' : 'emerald'} size="xl" />
+                    <div className="space-y-1.5 w-full pt-1 border-t border-slate-200 text-xs font-mono">
+                      <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-50 text-[#0F3E2E] border border-emerald-200 uppercase tracking-tight text-center truncate max-w-full">
+                        {item.formulaName || 'Formule Calibrée'}
+                      </span>
+                      {item.formula && (
+                        <div className="text-[10px] text-slate-700 font-semibold bg-white p-1 rounded border border-slate-200 truncate" title={item.formula}>
+                          {item.formula}
+                        </div>
+                      )}
+                      <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
+                        <span className="text-slate-400">Origine :</span>
+                        <span className="font-sans text-[10px] text-slate-700 truncate max-w-[110px]" title={item.sourceOrigin}>
+                          {item.sourceOrigin || `P${idx + 1}`}
+                        </span>
                       </div>
-                      <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>Grille 9×10 :</span>
-                        <span>L{item.matrixPos.row + 1} C{item.matrixPos.col + 1}</span>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Confiance :</span>
+                        <span className="font-bold text-[#0F3E2E]">{(item.modelScore * 100).toFixed(0)}%</span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* SECTION 1: SYNTHÈSE DE CORRESPONDANCE DES FORMULES PAR POSITION */}
+              {method3.caseStudy?.synthesizedFormulas && method3.caseStudy.synthesizedFormulas.length > 0 && (
+                <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/70 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-[#0F3E2E]" />
+                      <h5 className="font-heading font-semibold text-xs sm:text-sm text-slate-900">
+                        Synthèse de Correspondance des Formules Mathématiques (Positions P₁ à P₅)
+                      </h5>
+                    </div>
+                    <span className="text-[11px] text-emerald-800 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 self-start sm:self-auto">
+                      Application au dernier tirage certifié de {method3.caseStudy.targetGameName}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Après dépouillement des duos de tirages successifs, voici les formules dominantes ayant fait leurs preuves sur chaque position, appliquées aux numéros gagnants (W₀) et machines (M₀) du dernier tirage connu pour générer des numéros gagnants précis :
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3 font-mono text-xs">
+                    {method3.caseStudy.synthesizedFormulas.map((f) => (
+                      <div key={f.position} className="p-3 bg-white rounded border border-slate-200 space-y-2 flex flex-col justify-between shadow-2xs">
+                        <div>
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5 font-sans">
+                            <span className="font-bold text-slate-800 text-xs">Position P{f.position}</span>
+                            <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">
+                              {f.consistencyRate}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 my-1">
+                            <LotteryBall number={f.predictedNum} size="md" variant="emerald" />
+                            <div className="text-left font-sans">
+                              <div className="text-xs font-bold text-slate-900">Numéro {f.predictedNum}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">Confiance {(f.confidenceScore * 100).toFixed(0)}%</div>
+                            </div>
+                          </div>
+                          <div className="text-[11px] font-sans font-semibold text-slate-700 pt-1">
+                            {f.formulaName}
+                          </div>
+                          <div className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100 mt-1 break-all">
+                            {f.formulaExpr}
+                          </div>
+                        </div>
+                        <div className="text-[10px] font-sans text-slate-500 pt-1 border-t border-slate-100">
+                          Base : <strong className="text-slate-700">{f.sourceOperand}</strong>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Two-Sure Guarantee Callout */}
+                  {method3.caseStudy.twoSureAnchor && (
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-[#D97706] shrink-0" />
+                        <div>
+                          <strong className="text-[#92400E]">Optimisation Two-Sure (≥ 2 Gagnants) :</strong>{' '}
+                          <span className="text-amber-900">
+                            La dyade <strong>[{method3.caseStudy.twoSureAnchor.join(' - ')}]</strong> est identifiée comme la plus forte corrélation empirique sur l'historique de <em>{method3.caseStudy.targetGameName}</em>. Elle sert de socle pour verrouiller au moins deux sorties conjointes.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 bg-white px-2.5 py-1 rounded border border-amber-300 font-mono text-[11px] font-bold text-[#92400E]">
+                        <span>Dyade : {method3.caseStudy.twoSureAnchor[0]} & {method3.caseStudy.twoSureAnchor[1]}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SECTION 2: DÉPOUILLEMENT DES DUOS DE TIRAGES CONSÉCUTIFS */}
+              {method3.caseStudy?.transitions && method3.caseStudy.transitions.length > 0 && (
+                <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/70 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-[#0F3E2E]" />
+                      <h5 className="font-heading font-semibold text-xs sm:text-sm text-slate-900">
+                        Dépouillement des Duos Consécutifs de Tirages ({method3.caseStudy.transitions.length} paires analysées en ordre décroissant)
+                      </h5>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      Relation D_k+1 (Précédent) → D_k (Suivant)
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Pour chaque duo de tirages successifs dans l'ordre chronologique décroissant, l'algorithme prend les résultats complets du tirage précédent (<strong>numéros gagnants et numéros machines</strong>) et résout la formule mathématique exacte qui a généré chaque numéro gagnant dans sa position :
+                  </p>
+
+                  {/* Duo Selector Tabs */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {method3.caseStudy.transitions.map((tr, tIdx) => {
+                      const isSelected = selectedDuoIdx === tIdx;
+                      return (
+                        <button
+                          key={tr.pairId}
+                          onClick={() => setSelectedDuoIdx(tIdx)}
+                          className={`px-3 py-1.5 rounded text-xs font-heading font-semibold cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-[#0F3E2E] text-white shadow-2xs'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          Duo {tIdx + 1} : {tr.prevDate} → {tr.currDate}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Selected Duo Detail Box */}
+                  {method3.caseStudy.transitions[selectedDuoIdx] && (() => {
+                    const activeTr = method3.caseStudy.transitions[selectedDuoIdx];
+                    return (
+                      <div className="p-4 bg-white rounded-lg border border-slate-200 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                          {/* Preceding Draw Box */}
+                          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+                            <div className="font-sans font-bold text-slate-800 flex items-center justify-between">
+                              <span>Tirage Précédent : {activeTr.prevDrawName}</span>
+                              <span className="text-[11px] text-slate-500 font-mono">{activeTr.prevDate}</span>
+                            </div>
+                            <div className="text-slate-700 flex flex-wrap items-center gap-1.5 pt-1">
+                              <span className="font-sans text-[11px] text-slate-500 font-semibold">Gagnants W :</span>
+                              <strong className="text-[#0F3E2E] font-bold">{activeTr.prevNumbers.join(' - ')}</strong>
+                            </div>
+                            {activeTr.prevMachines && activeTr.prevMachines.length > 0 && (
+                              <div className="text-slate-600 flex flex-wrap items-center gap-1.5">
+                                <span className="font-sans text-[11px] text-slate-500 font-semibold">Machines M :</span>
+                                <strong className="text-slate-800 font-mono">{activeTr.prevMachines.join(' - ')}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Current Draw Box */}
+                          <div className="p-3 bg-emerald-50/50 rounded border border-emerald-200 space-y-1.5">
+                            <div className="font-sans font-bold text-emerald-950 flex items-center justify-between">
+                              <span>Tirage Suivant Obtenu : {activeTr.currDrawName}</span>
+                              <span className="text-[11px] text-emerald-700 font-mono">{activeTr.currDate}</span>
+                            </div>
+                            <div className="text-slate-700 flex flex-wrap items-center gap-1.5 pt-1">
+                              <span className="font-sans text-[11px] text-slate-500 font-semibold">Gagnants Sortis :</span>
+                              <strong className="text-[#0F3E2E] font-extrabold text-sm">{activeTr.currNumbers.join(' - ')}</strong>
+                            </div>
+                            <div className="text-[11px] font-sans text-emerald-800">
+                              Formules résolues avec succès sur les 5 positions gagnantes.
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Positional Breakdown for this Duo */}
+                        <div className="space-y-2">
+                          <h6 className="font-sans font-bold text-xs text-slate-800">
+                            Formules Mathématiques Résolues par Position (Tirage {activeTr.currDrawName} du {activeTr.currDate}) :
+                          </h6>
+                          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+                            {activeTr.positionFormulas.map((pf) => (
+                              <div key={pf.position} className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-1.5 text-xs font-mono">
+                                <div className="flex items-center justify-between font-sans">
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase">Pos {pf.position}</span>
+                                  <LotteryBall number={pf.winningNumber} size="sm" variant="emerald" />
+                                </div>
+                                <div className="font-sans text-[11px] font-bold text-slate-900 truncate" title={pf.formulaName}>
+                                  {pf.formulaName}
+                                </div>
+                                <div className="text-[10px] text-slate-700 bg-white p-1 rounded border border-slate-100 break-all">
+                                  {pf.formulaExpr}
+                                </div>
+                                <div className="text-[10px] font-sans text-slate-500 truncate" title={pf.sourceOperand}>
+                                  Opérande : <span className="text-slate-700 font-semibold">{pf.sourceOperand}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Trace de la dernière révision (Section B.4 requirement) */}
               <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/70 space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
                   <Cpu className="w-4 h-4 text-[#0F3E2E]" />
                   <h5 className="font-heading font-semibold text-xs sm:text-sm text-slate-900">
-                    Trace de la Dernière Révision (Boucle d'Ajustement)
+                    Trace de Calibrage Multi-Features & Boucle d'Ajustement
                   </h5>
                 </div>
 

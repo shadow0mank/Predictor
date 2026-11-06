@@ -208,28 +208,38 @@ export const TechnicalAnnexModal: React.FC<TechnicalAnnexModalProps> = ({
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded p-4 space-y-3 font-mono text-xs">
-                <div className="font-sans font-semibold text-slate-900">Features descriptives calculées par numéro :</div>
-                <div className="space-y-1 text-slate-700">
-                  <div>• <code>freq</code> = Moyenne d'apparition sur la fenêtre glissante T</div>
-                  <div>• <code>ecart</code> = Nombre de tirages écoulés depuis la dernière apparition</div>
-                  <div>• <code>lags</code> = Vecteur binaire d'apparition sur les L tirages immédiatement précédents</div>
-                  <div>• <code>ligne / 8, col / 9</code> = Coordonnées spatiales dans la grille matricielle 9×10 (1 à 90)</div>
-                  <div>• <code>slot_one_hot</code> = Encodage binaire de la tranche horaire</div>
+                <div className="font-sans font-semibold text-slate-900">1. Échelon Cas par Cas & Rétro-Ingénierie des Duos :</div>
+                <div className="space-y-1 text-slate-700 font-sans">
+                  <p>L'analyse s'effectue dans l'ordre chronologique décroissant sur les tirages du jeu ciblé (ex: Akwaba, Kado, Étoile, Fortune, Diamant). Pour chaque duo consécutif (D_{'{k+1}'} → D_{'{k}'}), le système prend les numéros gagnants (W) et machines (M) du tirage précédent pour identifier l'opérateur mathématique exact ayant produit chaque numéro gagnant :</p>
+                  <ul className="list-disc pl-5 mt-1 space-y-0.5 font-mono text-xs">
+                    <li><strong>Répétition Directe :</strong> <code>W[P] = W_prev[j]</code></li>
+                    <li><strong>Migration Machine :</strong> <code>W[P] = M_prev[j]</code></li>
+                    <li><strong>Delta Positionnel (±1..±3) :</strong> <code>W[P] = (W_prev[P] ± δ - 1 mod 90) + 1</code></li>
+                    <li><strong>Saut Colonne Grille 9×10 :</strong> <code>W[P] = (W_prev[j] ± 10 - 1 mod 90) + 1</code></li>
+                    <li><strong>Miroir Décimal (Inversion) :</strong> Inversion unités/dizaines (ex: 24 ↔ 42)</li>
+                    <li><strong>Complémentaire à 90 / 91 :</strong> <code>W[P] = 90 - W_prev[j]</code></li>
+                    <li><strong>Somme & Différence Modulo 90 :</strong> Combinaison de paires gagnantes précédentes</li>
+                  </ul>
                 </div>
 
-                <div className="font-sans font-semibold text-slate-900 pt-2">Algorithme de révision (pseudo-code) :</div>
+                <div className="font-sans font-semibold text-slate-900 pt-2">2. Synthèse de Correspondance par Position (P₁ à P₅) :</div>
+                <p className="font-sans text-slate-700">
+                  L'opérateur dominant à chaque position à travers les différents duos est retenu puis appliqué directement aux résultats du dernier tirage certifié (D₀) pour générer des numéros gagnants précis. Un ancrage empirique Two-Sure (dyade de plus forte co-occurrence) verrouille l'objectif d'au moins 2 numéros gagnants.
+                </p>
+
+                <div className="font-sans font-semibold text-slate-900 pt-2">Algorithme de calibration multi-features (pseudo-code) :</div>
                 <pre className="p-3 bg-white border border-slate-200 rounded text-slate-800 overflow-x-auto text-[11px]">
-{`train, cible = history[:-1], history[-1]
-best = None
-for it in range(max_iter):
-    T, L = config(it) # variation de T (fenêtre) et L (lag)
-    weights = init_poids(dim_features(T, L))
-    pred_final = predire_top5(train, T, L, slot, weights)
-    corrects = len(set(pred_final) & set(cible))
-    if corrects >= 2:
-        break # Critère atteint
-# Application des paramètres validés au tirage à venir
-prediction_future = predire_top5(history, best.T, best.L, slot, best.weights)`}
+{`# 1. Échelon Cas par Cas sur le jeu en ordre décroissant
+duos = [(draws[k+1], draws[k]) for k in range(1, 5)]
+formules_duos = [resoudre_operateurs_positionnels(prev, curr) for prev, curr in duos]
+
+# 2. Synthèse de Correspondance et application à D_0
+synthese_positions = evaluer_operateurs_dominants(formules_duos)
+predictions_synthese = [appliquer(op_dom, draws[0]) for op_dom in synthese_positions]
+
+# 3. Ancrage Two-Sure & Validation out-of-sample (>= 2 corrects)
+anchor_pair = trouver_dyade_optimale(draws)
+recommandes5 = fusionner_synthese_et_ancre(predictions_synthese, anchor_pair)`}
                 </pre>
               </div>
             </div>

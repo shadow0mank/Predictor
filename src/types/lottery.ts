@@ -114,6 +114,42 @@ export interface Method3RevisionTrace {
   };
 }
 
+export interface CaseStudyTransition {
+  pairId: string;
+  prevDrawName: string;
+  prevDate: string;
+  prevNumbers: number[];
+  prevMachines: number[];
+  currDrawName: string;
+  currDate: string;
+  currNumbers: number[];
+  positionFormulas: {
+    position: number;
+    winningNumber: number;
+    formulaName: string;
+    formulaExpr: string;
+    sourceOperand: string;
+  }[];
+}
+
+export interface PositionSynthesizedFormula {
+  position: number;
+  predictedNum: number;
+  formulaName: string;
+  formulaExpr: string;
+  sourceOperand: string;
+  confidenceScore: number;
+  consistencyRate: string;
+}
+
+export interface Method3CaseStudy {
+  targetGameName: string;
+  duosAnalyzedCount: number;
+  transitions: CaseStudyTransition[];
+  synthesizedFormulas: PositionSynthesizedFormula[];
+  twoSureAnchor?: [number, number];
+}
+
 export interface Method3Result {
   recommended5: {
     num: number;
@@ -121,8 +157,12 @@ export interface Method3Result {
     freqOnT: number;
     gap: number;
     matrixPos: { row: number; col: number };
+    formula?: string;
+    formulaName?: string;
+    sourceOrigin?: string;
   }[];
   trace: Method3RevisionTrace;
+  caseStudy?: Method3CaseStudy;
 }
 
 export interface Method4Result {
