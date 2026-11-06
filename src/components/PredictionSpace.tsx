@@ -529,6 +529,16 @@ export const PredictionSpace: React.FC<PredictionSpaceProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Two-Sure Optimization Note */}
+                  {method1.caseStudyDetails.twoSureTargetNote && (
+                    <div className="flex items-center gap-2 p-2.5 bg-emerald-100/70 border border-emerald-300 rounded text-emerald-950 text-xs font-sans">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>
+                        <strong>Optimisation ≥ 2 Gagnants :</strong> {method1.caseStudyDetails.twoSureTargetNote}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

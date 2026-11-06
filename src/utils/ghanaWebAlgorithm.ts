@@ -1,5 +1,9 @@
 import { Draw, DrawSlot, Method5Result } from '../types/lottery';
-import { computeNumberStatistics } from './probability';
+import {
+  computeNumberStatistics,
+  buildPairCoOccurrenceMap,
+  findBestCoOccurringPair,
+} from './probability';
 import {
   GHANA_WEB_FORECASTS,
   GHANA_WEB_SOURCE_URL,
@@ -185,7 +189,11 @@ export function runMethod5(
   // Sort candidates strictly by total calibrated score in descending order
   synergyDetails.sort((a, b) => b.totalScore - a.totalScore);
 
-  // Take top 5 candidates across all predictions and machines
+  // Two-Sure Anchor Optimization for Method 5: Target >= 2 winning numbers via empirical co-occurrence
+  const pairMapM5 = buildPairCoOccurrenceMap(activeDraws);
+  const topCandidatesM5 = synergyDetails.slice(0, 10).map((s) => s.num);
+  const bestPairM5 = findBestCoOccurringPair(topCandidatesM5, pairMapM5);
+
   const finalTop5: {
     num: number;
     origin: string;
@@ -196,17 +204,43 @@ export function runMethod5(
     currentGap: number;
   }[] = [];
 
-  for (const item of synergyDetails) {
-    finalTop5.push({
-      num: item.num,
-      origin: item.origin,
-      category: item.category,
-      score: item.totalScore,
-      slotFrequency: item.slotFrequency,
-      globalFrequency: item.globalFrequency,
-      currentGap: item.currentGap,
+  if (bestPairM5) {
+    const [p1, p2] = bestPairM5;
+    const it1 = synergyDetails.find((s) => s.num === p1)!;
+    const it2 = synergyDetails.find((s) => s.num === p2)!;
+    const rem = synergyDetails.filter((s) => s.num !== p1 && s.num !== p2);
+    rem.sort((a, b) => {
+      const coA = (pairMapM5.get(`${Math.min(a.num, p1)}-${Math.max(a.num, p1)}`) || 0) +
+                  (pairMapM5.get(`${Math.min(a.num, p2)}-${Math.max(a.num, p2)}`) || 0);
+      const coB = (pairMapM5.get(`${Math.min(b.num, p1)}-${Math.max(b.num, p1)}`) || 0) +
+                  (pairMapM5.get(`${Math.min(b.num, p2)}-${Math.max(b.num, p2)}`) || 0);
+      return (coB * 0.4 + b.totalScore) - (coA * 0.4 + a.totalScore);
     });
-    if (finalTop5.length === 5) break;
+
+    [it1, it2, ...rem.slice(0, 3)].forEach((item) => {
+      finalTop5.push({
+        num: item.num,
+        origin: item.origin,
+        category: item.category,
+        score: item.totalScore,
+        slotFrequency: item.slotFrequency,
+        globalFrequency: item.globalFrequency,
+        currentGap: item.currentGap,
+      });
+    });
+  } else {
+    for (const item of synergyDetails) {
+      finalTop5.push({
+        num: item.num,
+        origin: item.origin,
+        category: item.category,
+        score: item.totalScore,
+        slotFrequency: item.slotFrequency,
+        globalFrequency: item.globalFrequency,
+        currentGap: item.currentGap,
+      });
+      if (finalTop5.length === 5) break;
+    }
   }
 
   // Fallback if less than 5 candidates

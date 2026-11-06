@@ -8,7 +8,11 @@ import {
   MethodMatchRecord,
   HourlySlotRanking,
 } from '../types/lottery';
-import { computeNumberStatistics } from './probability';
+import {
+  computeNumberStatistics,
+  buildPairCoOccurrenceMap,
+  findBestCoOccurringPair,
+} from './probability';
 import { runMethod1, runMethod2, runMethod3 } from './algorithms';
 import { runMethod5, normalizeDrawHour } from './ghanaWebAlgorithm';
 import rawMatrices from '../data/lottoMatricePlus_ci_matrices.json';
@@ -271,8 +275,28 @@ export function runMethod4(
 
   sortedCandidates.sort((a, b) => b.totalScore - a.totalScore || a.num - b.num);
 
-  // Pick top 5
-  let selected = sortedCandidates.slice(0, 5);
+  // Two-Sure Anchor Optimization for Method 4: Structure top 5 around the highest co-occurring matrix pair
+  const matrixPairMap = buildPairCoOccurrenceMap(allDraws.slice(0, 150));
+  const topCandidatesM4 = sortedCandidates.slice(0, 12).map((c) => c.num);
+  const bestMatrixPair = findBestCoOccurringPair(topCandidatesM4, matrixPairMap);
+
+  let selected: typeof sortedCandidates = [];
+  if (bestMatrixPair) {
+    const [p1, p2] = bestMatrixPair;
+    const it1 = sortedCandidates.find((c) => c.num === p1)!;
+    const it2 = sortedCandidates.find((c) => c.num === p2)!;
+    const rem = sortedCandidates.filter((c) => c.num !== p1 && c.num !== p2);
+    rem.sort((a, b) => {
+      const coA = (matrixPairMap.get(`${Math.min(a.num, p1)}-${Math.max(a.num, p1)}`) || 0) +
+                  (matrixPairMap.get(`${Math.min(a.num, p2)}-${Math.max(a.num, p2)}`) || 0);
+      const coB = (matrixPairMap.get(`${Math.min(b.num, p1)}-${Math.max(b.num, p1)}`) || 0) +
+                  (matrixPairMap.get(`${Math.min(b.num, p2)}-${Math.max(b.num, p2)}`) || 0);
+      return (coB * 0.5 + b.totalScore) - (coA * 0.5 + a.totalScore);
+    });
+    selected = [it1, it2, ...rem.slice(0, 3)];
+  } else {
+    selected = sortedCandidates.slice(0, 5);
+  }
 
   // Complete to 5 if matrix was short
   if (selected.length < 5) {

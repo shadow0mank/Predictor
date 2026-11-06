@@ -171,3 +171,50 @@ export function computeTopPairs(draws: Draw[], limit = 20): PairFrequency[] {
   list.sort((x, y) => y.count - x.count);
   return list.slice(0, limit);
 }
+
+/**
+ * Fast pairwise co-occurrence map for a given set of draws.
+ * Map key: `${min(a,b)}-${max(a,b)}` -> number of shared draws.
+ */
+export function buildPairCoOccurrenceMap(draws: Draw[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (let d = 0; d < draws.length; d++) {
+    const nums = draws[d].numbers;
+    const len = nums.length;
+    for (let i = 0; i < len; i++) {
+      for (let j = i + 1; j < len; j++) {
+        const a = nums[i] < nums[j] ? nums[i] : nums[j];
+        const b = nums[i] < nums[j] ? nums[j] : nums[i];
+        const key = `${a}-${b}`;
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Finds the pair of numbers in candidates that has the highest historical co-occurrence
+ * in the given pair co-occurrence map.
+ */
+export function findBestCoOccurringPair(
+  candidates: number[],
+  pairMap: Map<string, number>
+): [number, number] | null {
+  if (candidates.length < 2) return null;
+  let bestPair: [number, number] | null = null;
+  let maxCoCount = -1;
+
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = Math.min(candidates[i], candidates[j]);
+      const b = Math.max(candidates[i], candidates[j]);
+      const count = pairMap.get(`${a}-${b}`) || 0;
+      if (count > maxCoCount) {
+        maxCoCount = count;
+        bestPair = [a, b];
+      }
+    }
+  }
+  return bestPair;
+}

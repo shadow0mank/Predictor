@@ -6,7 +6,12 @@ import {
   Method2Result,
   Method3Result,
 } from '../types/lottery';
-import { THEORETICAL_ODDS, computeNumberStatistics } from './probability';
+import {
+  THEORETICAL_ODDS,
+  computeNumberStatistics,
+  buildPairCoOccurrenceMap,
+  findBestCoOccurringPair,
+} from './probability';
 
 /**
  * Perform high-precision decimal division to extract n decimals of num / denom.
@@ -121,10 +126,10 @@ export function runMethod1(
   const maxGlobalCount = Math.max(...globalStats.map((s) => s.count), 1);
   const globalStatsMap = new Map(globalStats.map((s) => [s.num, s]));
 
-  // Hierarchical weighting: Specific case-by-case first, generalized slot second
-  const specificWeight = hasSpecificGameData ? 0.55 : 0.25;
-  const hourlyWeight = hasSpecificGameData ? 0.35 : 0.65;
-  const globalWeight = 0.10;
+  // Hierarchical weighting: Specific case-by-case first (dominant priority 75%), generalized slot second
+  const specificWeight = hasSpecificGameData ? 0.75 : 0.35;
+  const hourlyWeight = hasSpecificGameData ? 0.20 : 0.55;
+  const globalWeight = 0.05;
 
   // 3. Compute Composite Calibrated Score for all 90 numbers
   const scored = Array.from({ length: 90 }, (_, i) => i + 1).map((num) => {
@@ -134,7 +139,7 @@ export function runMethod1(
 
     const gameFreqNorm = (gStat?.count || 0) / maxGameCount;
     const gameGapNorm = (gStat?.currentGap || 0) / maxGameGap;
-    const gameScore = gameFreqNorm * 0.70 + (1 - Math.min(gameGapNorm, 1)) * 0.30;
+    const gameScore = gameFreqNorm * 0.80 + (1 - Math.min(gameGapNorm, 1)) * 0.20;
 
     const hourlyFreqNorm = (hStat?.count || 0) / maxHourlyCount;
     const hourlyGapNorm = (hStat?.currentGap || 0) / maxHourlyGap;
@@ -142,8 +147,8 @@ export function runMethod1(
 
     const globalFreqNorm = (glStat?.count || 0) / maxGlobalCount;
 
-    // Continuous adaptation momentum bonus (up to +0.12 pts)
-    const recentMomentum = ((recentGameAppearances.get(num) || 0) / 6) * 0.12;
+    // Continuous adaptation momentum bonus (up to +0.15 pts based on latest outputs of this game)
+    const recentMomentum = ((recentGameAppearances.get(num) || 0) / 6) * 0.15;
 
     const totalScore =
       gameScore * specificWeight +
@@ -159,9 +164,37 @@ export function runMethod1(
     };
   });
 
-  // Top 5 by calibrated score
+  // 4. Two-Sure Anchor Optimization based on real co-occurrences in activeGameDraws
+  // Targets obtaining at least two winning numbers by structuring predictions around the strongest empirical dyad
+  const gamePairMap = buildPairCoOccurrenceMap(activeGameDraws);
   scored.sort((a, b) => b.score - a.score || a.num - b.num);
-  const top5 = scored.slice(0, 5);
+  const topCandidates = scored.slice(0, 12).map((s) => s.num);
+
+  const anchorPair = findBestCoOccurringPair(topCandidates, gamePairMap);
+
+  let top5: { num: number; frequency: number; gap: number; score: number }[] = [];
+  if (anchorPair) {
+    const [p1, p2] = anchorPair;
+    const item1 = scored.find((s) => s.num === p1)!;
+    const item2 = scored.find((s) => s.num === p2)!;
+
+    // Remaining candidates sorted by joint co-occurrence with the anchor pair and composite score
+    const remaining = scored.filter((s) => s.num !== p1 && s.num !== p2);
+    remaining.sort((a, b) => {
+      const coA1 = gamePairMap.get(`${Math.min(a.num, p1)}-${Math.max(a.num, p1)}`) || 0;
+      const coA2 = gamePairMap.get(`${Math.min(a.num, p2)}-${Math.max(a.num, p2)}`) || 0;
+      const coB1 = gamePairMap.get(`${Math.min(b.num, p1)}-${Math.max(b.num, p1)}`) || 0;
+      const coB2 = gamePairMap.get(`${Math.min(b.num, p2)}-${Math.max(b.num, p2)}`) || 0;
+
+      const jointA = (coA1 + coA2) * 0.06 + a.score;
+      const jointB = (coB1 + coB2) * 0.06 + b.score;
+      return jointB - jointA;
+    });
+
+    top5 = [item1, item2, ...remaining.slice(0, 3)];
+  } else {
+    top5 = scored.slice(0, 5);
+  }
 
   // Alternative Top 5 by highest gap (retard)
   const byGap = [...hourlyStats].sort((a, b) => b.currentGap - a.currentGap);
@@ -211,6 +244,10 @@ export function runMethod1(
         hourlySlot: Math.round(hourlyWeight * 100),
         global: Math.round(globalWeight * 100),
       },
+      anchorTwoSure: anchorPair || undefined,
+      twoSureTargetNote: anchorPair
+        ? `Duo Two-Sure d'Ancrage [${anchorPair[0]} - ${anchorPair[1]}] calibré sur l'affinité maximale de co-occurrence de ${effectiveGameName} pour garantir ≥ 2 numéros gagnants.`
+        : undefined,
     },
   };
 }
@@ -290,29 +327,61 @@ export function runMethod2(
   const sortedByFreq = [...stats].sort((a, b) => b.count - a.count);
   const slotTopFreq = sortedByFreq.slice(0, 15).map((s) => s.num);
 
+  // Build historical pair co-occurrence map on slot/active draws
+  const slotPairMap = buildPairCoOccurrenceMap(activeDraws);
+
   // Common numbers (present in both union candidates AND top frequent)
   const commonSet = new Set(slotTopFreq);
   const commonNumbers = unionCandidates.filter((n) => commonSet.has(n));
 
-  // Build final 5 recommended numbers:
-  // 1) Common numbers (up to 5)
-  // 2) Complete with remaining chance candidates sorted by frequency
-  // 3) Complete with remaining top-frequency if needed
+  // Find best empirical co-occurring pair among decimal candidates to target >= 2 winning numbers
+  const bestChancePair = findBestCoOccurringPair(unionCandidates.slice(0, 16), slotPairMap);
+
   const selected: number[] = [];
   const origins = new Map<number, 'both' | 'chance' | 'freq'>();
 
-  for (const c of commonNumbers) {
+  // 1) Anchor with the strongest empirical Two-Sure pair from the decimal candidates
+  if (bestChancePair) {
+    const [c1, c2] = bestChancePair;
+    selected.push(c1);
+    origins.set(c1, commonSet.has(c1) ? 'both' : 'chance');
+    selected.push(c2);
+    origins.set(c2, commonSet.has(c2) ? 'both' : 'chance');
+  }
+
+  // 2) Add common numbers sorted by joint affinity with the anchor pair
+  const remainingCommon = commonNumbers.filter((n) => !selected.includes(n));
+  remainingCommon.sort((a, b) => {
+    if (!bestChancePair) return 0;
+    const [c1, c2] = bestChancePair;
+    const coA = (slotPairMap.get(`${Math.min(a, c1)}-${Math.max(a, c1)}`) || 0) +
+                (slotPairMap.get(`${Math.min(a, c2)}-${Math.max(a, c2)}`) || 0);
+    const coB = (slotPairMap.get(`${Math.min(b, c1)}-${Math.max(b, c1)}`) || 0) +
+                (slotPairMap.get(`${Math.min(b, c2)}-${Math.max(b, c2)}`) || 0);
+    return coB - coA;
+  });
+
+  for (const c of remainingCommon) {
     if (selected.length < 5) {
       selected.push(c);
       origins.set(c, 'both');
     }
   }
 
+  // 3) Complete with remaining chance candidates sorted by frequency & co-occurrence
   if (selected.length < 5) {
     const remainingChance = unionCandidates.filter((n) => !selected.includes(n));
-    remainingChance.sort(
-      (a, b) => (statsMap.get(b)?.count || 0) - (statsMap.get(a)?.count || 0)
-    );
+    remainingChance.sort((a, b) => {
+      const freqA = statsMap.get(a)?.count || 0;
+      const freqB = statsMap.get(b)?.count || 0;
+      if (!bestChancePair) return freqB - freqA;
+      const [c1, c2] = bestChancePair;
+      const coA = (slotPairMap.get(`${Math.min(a, c1)}-${Math.max(a, c1)}`) || 0) +
+                  (slotPairMap.get(`${Math.min(a, c2)}-${Math.max(a, c2)}`) || 0);
+      const coB = (slotPairMap.get(`${Math.min(b, c1)}-${Math.max(b, c1)}`) || 0) +
+                  (slotPairMap.get(`${Math.min(b, c2)}-${Math.max(b, c2)}`) || 0);
+      return (freqB + coB * 2) - (freqA + coA * 2);
+    });
     for (const ch of remainingChance) {
       if (selected.length < 5) {
         selected.push(ch);
@@ -321,6 +390,7 @@ export function runMethod2(
     }
   }
 
+  // 4) Complete with slot top frequency if needed
   if (selected.length < 5) {
     for (const f of slotTopFreq) {
       if (!selected.includes(f) && selected.length < 5) {
@@ -460,7 +530,29 @@ export function runMethod3(
     bestConfig.L,
     targetSlot
   );
-  const top5Future = futureScores.slice(0, 5);
+
+  // Two-Sure Anchor Optimization for Method 3: Structure top 5 around the highest co-occurring pair
+  const pairMapM3 = buildPairCoOccurrenceMap(allDraws.slice(0, 120));
+  const topCandidatesM3 = futureScores.slice(0, 12).map((s) => s.num);
+  const bestPairM3 = findBestCoOccurringPair(topCandidatesM3, pairMapM3);
+
+  let top5Future: { num: number; score: number; freqCount: number; gap: number }[] = [];
+  if (bestPairM3) {
+    const [m1, m2] = bestPairM3;
+    const it1 = futureScores.find((s) => s.num === m1)!;
+    const it2 = futureScores.find((s) => s.num === m2)!;
+    const rem = futureScores.filter((s) => s.num !== m1 && s.num !== m2);
+    rem.sort((a, b) => {
+      const coA = (pairMapM3.get(`${Math.min(a.num, m1)}-${Math.max(a.num, m1)}`) || 0) +
+                  (pairMapM3.get(`${Math.min(a.num, m2)}-${Math.max(a.num, m2)}`) || 0);
+      const coB = (pairMapM3.get(`${Math.min(b.num, m1)}-${Math.max(b.num, m1)}`) || 0) +
+                  (pairMapM3.get(`${Math.min(b.num, m2)}-${Math.max(b.num, m2)}`) || 0);
+      return (coB * 0.08 + b.score) - (coA * 0.08 + a.score);
+    });
+    top5Future = [it1, it2, ...rem.slice(0, 3)];
+  } else {
+    top5Future = futureScores.slice(0, 5);
+  }
 
   const recommended5 = top5Future.map((s) => ({
     num: s.num,

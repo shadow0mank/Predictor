@@ -64,6 +64,8 @@ export interface Method1Result {
     gameTopNumbers: { num: number; count: number; gap: number }[];
     hourlyTopNumbers: { num: number; count: number; gap: number }[];
     hierarchyWeights: { specificGame: number; hourlySlot: number; global: number };
+    anchorTwoSure?: [number, number];
+    twoSureTargetNote?: string;
   };
 }
 
